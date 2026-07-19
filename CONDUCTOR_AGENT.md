@@ -1,33 +1,33 @@
-# Conductor Koordinasyon Protokolü (CLAUDE.md'ye ekle)
+# Conductor Coordination Protocol (append to CLAUDE.md)
 
-Bu projede birden çok Claude ajanı ayrı makinelerde çalışıyor. Çakışmayı önlemek ve
-işbölümü yapmak için **Conductor** MCP sunucusunu kullan. Kimliğin token'ından gelir
-(sen kimsin: `whoami`). Kurallar:
+Multiple Claude agents work on this project across separate machines. To avoid conflicts and divide
+the work, use the **Conductor** MCP server. Your identity comes from your token (who am I: `whoami`).
+Rules:
 
-## Oturum başında
-1. `register(machine="<makinen>")` — kendini panoya kaydet.
-2. `sync()` — ekip ne yapıyor, senin açık görevlerin, okunmamış mesajların? Duruma göre hareket et.
+## At the start of a session
+1. `register(machine="<your-machine>")` — register yourself on the board.
+2. `sync()` — what is the team doing, what are your open tasks, any unread messages? Act accordingly.
 
-## İş alma döngüsü
-3. `claim_next_task()` ile sıradaki uygun görevi al (atomik — başka ajan aynı görevi almaz).
-   - Görev döndüyse: `heartbeat(status="working", note="<kısa ne yapıyorsun>")`.
-   - `{claimed:null}` ise: `sync()` ile panoya bak; gerekli işi `create_task(...)` ile ekle.
-4. Bir dosyayı düzenlemeden önce **kilitle**: `acquire_file_lock("file:<yol>")`.
-   Alamazsan başka ajan üstünde demektir — başka göreve geç veya `post_message` ile konuş.
-5. İş bitince: `update_task(task_id, status="done", artifacts={"commit":"...","files":[...]})`
-   ve `release_file_lock("file:<yol>")`.
-   - Bloke olduysan: `update_task(task_id, status="blocked")` + `post_message` ile neyin
-     beklediğini yaz.
-   - İncelemeye gidecekse: `status="review"`.
+## Work loop
+3. Claim the next available task with `claim_next_task()` (atomic — no other agent gets the same task).
+   - If a task is returned: `heartbeat(status="working", note="<short: what you're doing>")`.
+   - If `{claimed:null}`: check the board with `sync()`; add needed work with `create_task(...)`.
+4. Before editing a file, **lock it**: `acquire_file_lock("file:<path>")`.
+   If you can't get it, another agent is on it — switch to another task or talk via `post_message`.
+5. When done: `update_task(task_id, status="done", artifacts={"commit":"...","files":[...]})`
+   and `release_file_lock("file:<path>")`.
+   - If blocked: `update_task(task_id, status="blocked")` + `post_message` explaining what you're
+     waiting on.
+   - If it goes to review: `status="review"`.
 
-## İletişim
-- Ekibe bir şey söylemek/sorman gerekirse `post_message(body, to_agent="<isim veya boş>")`.
-- Ara ara `read_messages()` ile sana geleni oku; `sync()` ile panoyu tazele.
+## Communication
+- To tell/ask the team something, use `post_message(body, to_agent="<name or empty>")`.
+- Periodically read what's addressed to you with `read_messages()`; refresh the board with `sync()`.
 
-## İş üretme (planlama)
-- Büyük işi parçalara böl: her parça için `create_task(title, spec, priority,
-  depends_on=[...], assign_mode="auto")`. Sıra/bağımlılık Conductor'da; sen sadece tanımla.
-- Belirli birine iş vermek istersen `assign_mode="manual", assignee="<isim>"`.
+## Producing work (planning)
+- Break big work into pieces: for each piece, `create_task(title, spec, priority,
+  depends_on=[...], assign_mode="auto")`. Ordering/dependencies live in Conductor; you just define them.
+- To assign work to someone specific, use `assign_mode="manual", assignee="<name>"`.
 
-## Altın kural
-Aynı anda aynı dosyaya iki ajan dokunmasın. Şüphedeysen **önce kilitle veya mesajlaş**.
+## Golden rule
+Never let two agents touch the same file at once. When in doubt, **lock or message first**.

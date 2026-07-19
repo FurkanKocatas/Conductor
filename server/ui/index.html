@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -67,7 +67,7 @@
   .card select{margin-top:8px;width:100%;border:1px solid var(--line);border-radius:8px;padding:5px 7px;font-size:12px;color:var(--ink);background:#fcfdff}
   .card .dep{color:var(--blocked);font-size:11px;margin-top:6px}
   /* feed */
-  /* feed kartları */
+  /* feed cards */
   .fcard{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:8px;cursor:pointer;transition:border-color .12s,box-shadow .12s}
   .fcard:hover{border-color:#c7d2fe;box-shadow:0 2px 8px rgba(79,70,229,.08)}
   .fcard.msg{background:#faf5ff}
@@ -79,7 +79,7 @@
   .fc-act{color:var(--muted);font-size:12.5px;margin-top:3px}
   .fc-tgt{font-weight:600;font-size:12.5px;margin-top:3px;line-height:1.35}
   .fc-body{font-size:12.5px;margin-top:4px;line-height:1.4}
-  /* detay modalı */
+  /* detail modal */
   .modal.detail{width:min(560px,94vw);padding:0;overflow:hidden}
   .dhead{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--line)}
   .dhead h3{margin:0}
@@ -112,14 +112,14 @@
   .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
   .hint{color:var(--muted);font-size:12px;margin-top:6px}
   .empty{color:#aab2c5;font-size:12px;text-align:center;padding:14px}
-  /* sekmeler + sayfalar */
+  /* tabs + pages */
   nav.tabs{display:flex;gap:4px;margin-left:6px}
   nav.tabs a{padding:7px 14px;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted);text-decoration:none}
   nav.tabs a:hover{background:var(--bg);color:var(--ink)}
   nav.tabs a.active{background:var(--accent);color:var(--brand)}
   section.page{padding:16px;height:calc(100vh - 59px);overflow-y:auto}
   .page-inner{max-width:1080px;margin:0 auto}
-  /* bellek */
+  /* memory */
   .bk-add{display:flex;gap:8px;margin-bottom:12px}
   .bk-add input{flex:1;border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13px;font-family:inherit;color:var(--ink)}
   .bk-tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
@@ -136,7 +136,7 @@
   .t-activity{background:#e0e7ff;color:#4338ca} .t-message{background:#f3e8ff;color:#7e22ce} .t-memory{background:#dcfce7;color:#15803d}
   .k-handoff{background:#fef3c7;color:#b45309} .k-decision{background:#dbeafe;color:#1d4ed8} .k-note{background:#f1f5f9;color:#475569}
   .jbody{background:#f8faff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:5px;font-size:12.5px;line-height:1.5;white-space:pre-wrap}
-  /* analitik */
+  /* analytics */
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
   .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 18px;box-shadow:var(--shadow)}
   .stat .n{font-size:26px;font-weight:750;letter-spacing:-.5px}
@@ -153,21 +153,21 @@
   <div class="brand"><div class="dot"></div>Conductor</div>
   <span class="proj" id="projName">…</span>
   <nav class="tabs">
-    <a href="#pano" data-view="pano">Pano</a>
-    <a href="#bellek" data-view="bellek">Bellek</a>
-    <a href="#analitik" data-view="analitik">Analitik</a>
+    <a href="#board" data-view="board">Board</a>
+    <a href="#memory" data-view="memory">Memory</a>
+    <a href="#analytics" data-view="analytics">Analytics</a>
   </nav>
-  <div class="live"><span class="pulse"></span><span id="liveTxt">bağlanıyor…</span></div>
-  <button class="btn ghost" title="Çalışma yönergesi (Brief)" onclick="showBrief()">ℹ Brief</button>
-  <button class="btn primary" onclick="openTask()">+ Görev</button>
-  <button class="btn ghost" title="Token değiştir" onclick="logout()">⚙</button>
+  <div class="live"><span class="pulse"></span><span id="liveTxt">connecting…</span></div>
+  <button class="btn ghost" title="Working brief" onclick="showBrief()">ℹ Brief</button>
+  <button class="btn primary" onclick="openTask()">+ Task</button>
+  <button class="btn ghost" title="Change token" onclick="logout()">⚙</button>
 </header>
 
-<main id="view-pano">
+<main id="view-board">
   <section class="col">
-    <h2>Ajanlar <span id="agCount" style="color:var(--muted)"></span></h2>
+    <h2>Agents <span id="agCount" style="color:var(--muted)"></span></h2>
     <div class="scroll" id="agents"></div>
-      <h2>Kullanıcılar <span id="usrCount" style="color:var(--muted)"></span></h2>
+      <h2>Users <span id="usrCount" style="color:var(--muted)"></span></h2>
       <div id="users"></div>
   </section>
 
@@ -176,38 +176,38 @@
   </section>
 
   <section class="col">
-    <h2>Akış</h2>
+    <h2>Feed</h2>
     <div class="scroll" id="feed"></div>
   </section>
 </main>
 
-<section id="view-bellek" class="page" style="display:none"><div class="page-inner">
+<section id="view-memory" class="page" style="display:none"><div class="page-inner">
   <div class="bk-add">
-    <input id="bk_note" placeholder="Bir not / karar / devir (handoff) yaz…" onkeydown="if(event.key==='Enter')addNote()">
-    <select id="bk_kind"><option value="note">Not</option><option value="decision">Karar</option><option value="handoff">Devir</option></select>
-    <button class="btn primary" onclick="addNote()">Ekle</button>
+    <input id="bk_note" placeholder="Write a note / decision / handoff…" onkeydown="if(event.key==='Enter')addNote()">
+    <select id="bk_kind"><option value="note">Note</option><option value="decision">Decision</option><option value="handoff">Handoff</option></select>
+    <button class="btn primary" onclick="addNote()">Add</button>
   </div>
   <div class="bk-tools">
-    <input class="search" id="bk_search" placeholder="Ara…" oninput="renderBellek()">
-    <select id="bk_agent" onchange="renderBellek()"><option value="">Herkes</option></select>
-    <select id="bk_type" onchange="renderBellek()">
-      <option value="">Tüm türler</option><option value="activity">Olaylar</option>
-      <option value="message">Mesajlar</option><option value="memory">Notlar</option></select>
-    <button class="btn" onclick="loadJournal()">↻ Yenile</button>
+    <input class="search" id="bk_search" placeholder="Search…" oninput="renderMemory()">
+    <select id="bk_agent" onchange="renderMemory()"><option value="">Everyone</option></select>
+    <select id="bk_type" onchange="renderMemory()">
+      <option value="">All types</option><option value="activity">Events</option>
+      <option value="message">Messages</option><option value="memory">Notes</option></select>
+    <button class="btn" onclick="loadJournal()">↻ Refresh</button>
   </div>
   <div id="journal"></div>
 </div></section>
 
-<section id="view-analitik" class="page" style="display:none"><div class="page-inner">
+<section id="view-analytics" class="page" style="display:none"><div class="page-inner">
   <div class="cards" id="an_cards"></div>
   <div class="charts" id="an_charts"></div>
 </div></section>
 
 <script>
 const LANES=[
-  ["todo","Yapılacak","var(--todo)"],["claimed","Aktif","var(--claimed)"],
-  ["in_progress","Test","var(--prog)"],["blocked","Bloke","var(--blocked)"],
-  ["review","İnceleme","var(--review)"],["done","Bitti","var(--done)"]];
+  ["todo","To Do","var(--todo)"],["claimed","Active","var(--claimed)"],
+  ["in_progress","Test","var(--prog)"],["blocked","Blocked","var(--blocked)"],
+  ["review","Review","var(--review)"],["done","Done","var(--done)"]];
 const LANE_TR=Object.fromEntries(LANES.map(l=>[l[0],l[1]]));
 let TOKEN=localStorage.getItem("conductor_token")||"";
 let STATE={agents:[],tasks:[],activity:[],messages:[]};
@@ -223,11 +223,11 @@ async function api(method,path,body){
 }
 function esc(s){return (s??"").toString().replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function ago(iso){if(!iso)return"—";const s=(Date.now()-new Date(iso).getTime())/1000;
-  if(s<60)return Math.max(0,Math.round(s))+" sn";if(s<3600)return Math.round(s/60)+" dk";
-  if(s<86400)return Math.round(s/3600)+" sa";return Math.round(s/86400)+" g";}
+  if(s<60)return Math.max(0,Math.round(s))+" s";if(s<3600)return Math.round(s/60)+" m";
+  if(s<86400)return Math.round(s/3600)+" h";return Math.round(s/86400)+" d";}
 function agentStatus(a){
   const hb=a.last_heartbeat?Date.now()-new Date(a.last_heartbeat).getTime():Infinity;
-  if(a.status==="offline"||hb>120000)return "offline";   // 2 dk sessiz → offline (dürüst roster)
+  if(a.status==="offline"||hb>120000)return "offline";   // 2 min silent → offline (honest roster)
   if(a.status==="working"&&hb>60000)return "idle";
   return a.status||"offline";
 }
@@ -253,7 +253,7 @@ function renderAgents(){
       ${gitBadge(a)}
       ${ct?`<div class="task">▸ ${esc(ct.title)}</div>`:""}
       ${a.note?`<div class="meta">${esc(a.note)}</div>`:""}</div>`;
-  }).join("")||`<div class="empty">Henüz ajan yok</div>`;
+  }).join("")||`<div class="empty">No agents yet</div>`;
   _el.scrollTop=_sc;
 }
 
@@ -261,20 +261,20 @@ function renderUsers(){
   const u=(STATE.users||[]);
   document.getElementById("usrCount").textContent=u.filter(x=>x.online).length+"/"+u.length;
   const el=document.getElementById("users"),sc=el.scrollTop;
-  el.innerHTML=u.map(x=>`<div class="urow"><span class="sdot s-${x.online?'working':'offline'}"></span><span class="nm">${esc(x.label)}</span><span class="ur">${x.online?'\ud83d\udfe2 sayfada':'çevrimdışı'}</span></div>`).join("")||`<div class="empty">—</div>`;
+  el.innerHTML=u.map(x=>`<div class="urow"><span class="sdot s-${x.online?'working':'offline'}"></span><span class="nm">${esc(x.label)}</span><span class="ur">${x.online?'\ud83d\udfe2 on page':'offline'}</span></div>`).join("")||`<div class="empty">—</div>`;
   el.scrollTop=sc;
 }
 let _boardSig="";
 function renderBoard(force){
   const byId=Object.fromEntries(STATE.tasks.map(t=>[t.id,t]));
   const agents=STATE.agents.map(a=>a.name);
-  // Değişiklik imzası — görsel'i etkileyen her şey. Aynıysa DOM'a DOKUNMA (scroll korunur).
+  // Change signature — everything that affects the visuals. If unchanged, DON'T TOUCH the DOM (scroll preserved).
   const sig=JSON.stringify([agents, STATE.tasks.map(t=>
     [t.id,t.status,t.assignee,t.assign_mode,t.priority,t.board_order,t.title,t.prompt_state,(t.depends_on||[]).length])]);
   if(!force && sig===_boardSig) return;
   _boardSig=sig;
   const board=document.getElementById("board");
-  // Yeniden çizim gerekince scroll pozisyonlarını sakla → geri yükle (yukarı zıplama olmasın)
+  // When a redraw is needed, save scroll positions → restore them (avoid jumping to the top)
   const sx=board.scrollLeft, sy={};
   board.querySelectorAll(".items").forEach(el=>sy[el.dataset.status]=el.scrollTop);
   board.innerHTML=LANES.map(([key,label,color])=>{
@@ -288,59 +288,59 @@ function renderBoard(force){
   board.querySelectorAll(".items").forEach(el=>{if(sy[el.dataset.status]!=null)el.scrollTop=sy[el.dataset.status];});
 }
 function psChip(t){
-  const m={pending:['⏳ Claude sırada','#fef3c7','#b45309'],
-           running:['⚙ Claude çalışıyor','#dbeafe','#1d4ed8'],
-           done:['✓ yapıldı','#dcfce7','#15803d']}[t.prompt_state];
+  const m={pending:['⏳ Claude queued','#fef3c7','#b45309'],
+           running:['⚙ Claude working','#dbeafe','#1d4ed8'],
+           done:['✓ done','#dcfce7','#15803d']}[t.prompt_state];
   return m?`<span class="chip" style="background:${m[1]};color:${m[2]}">${m[0]}</span>`:'';
 }
 function card(t,byId,agents){
   const unmet=(t.depends_on||[]).filter(id=>byId[id]&&byId[id].status!=="done").length;
-  const opt=`<option value="">— otomatik havuz —</option>`+agents.map(n=>
+  const opt=`<option value="">— auto pool —</option>`+agents.map(n=>
     `<option value="${esc(n)}" ${t.assignee===n?"selected":""}>${esc(n)}</option>`).join("");
   return `<div class="card" draggable="true" data-id="${t.id}">
-    <div class="t" onclick="openTaskCard('${t.id}')" style="cursor:pointer" title="Detay / prompt / düzeltme / sil">${esc(t.title)}</div>
+    <div class="t" onclick="openTaskCard('${t.id}')" style="cursor:pointer" title="Detail / prompt / revise / delete">${esc(t.title)}</div>
     <div class="foot">
       ${t.priority?`<span class="chip pri">P${t.priority}</span>`:""}
-      <span class="chip mode-${t.assign_mode}">${t.assign_mode==="manual"?"manuel":"oto"}</span>
+      <span class="chip mode-${t.assign_mode}">${t.assign_mode==="manual"?"manual":"auto"}</span>
       ${t.assignee?`<span class="chip">👤 ${esc(t.assignee)}</span>`:""}
       ${psChip(t)}
     </div>
-    ${unmet?`<div class="dep">⛔ ${unmet} bağımlılık bekliyor</div>`:""}
+    ${unmet?`<div class="dep">⛔ ${unmet} dependency waiting</div>`:""}
     <select onchange="assign('${t.id}',this.value)" onmousedown="event.stopPropagation()">${opt}</select>
   </div>`;
 }
 
-// ── Görev kartı: başlığa tıkla → detay / düzenle / sil ──
+// ── Task card: click the title → detail / edit / delete ──
 function openTaskCard(id){
   const t=STATE.tasks.find(x=>x.id===id); if(!t)return;
   const agents=STATE.agents.map(a=>a.name);
   const acts=STATE.activity.filter(a=>(a.detail||{}).task_id===id);
   const msgs=STATE.messages.filter(m=>m.task_id===id);
   const statusOpts=LANES.map(([k,l])=>`<option value="${k}" ${t.status===k?"selected":""}>${l}</option>`).join("");
-  const whoOpts=`<option value="">— otomatik havuz —</option>`+agents.map(n=>`<option ${t.assignee===n?"selected":""}>${esc(n)}</option>`).join("");
+  const whoOpts=`<option value="">— auto pool —</option>`+agents.map(n=>`<option ${t.assignee===n?"selected":""}>${esc(n)}</option>`).join("");
   const art=t.artifacts&&Object.keys(t.artifacts).length
-    ?`<label>Çıktılar (artifacts)</label><pre class="art">${esc(JSON.stringify(t.artifacts,null,2))}</pre>`:"";
-  const dep=(t.depends_on||[]).length?`<div class="hint">⛔ ${t.depends_on.length} bağımlılık tanımlı</div>`:"";
+    ?`<label>Outputs (artifacts)</label><pre class="art">${esc(JSON.stringify(t.artifacts,null,2))}</pre>`:"";
+  const dep=(t.depends_on||[]).length?`<div class="hint">⛔ ${t.depends_on.length} dependencies defined</div>`:"";
   const o=document.createElement("div");o.className="overlay";o.onclick=e=>{if(e.target===o)o.remove()};
-  o.innerHTML=`<div class="modal"><h3>Görev — Detay / Düzenle</h3>
-    <label>Başlık</label><input id="et_title" value="${esc(t.title)}">
-    <label>Açıklama / Spec</label><textarea id="et_spec" style="min-height:88px">${esc(t.spec||"")}</textarea>
+  o.innerHTML=`<div class="modal"><h3>Task — Detail / Edit</h3>
+    <label>Title</label><input id="et_title" value="${esc(t.title)}">
+    <label>Description / Spec</label><textarea id="et_spec" style="min-height:88px">${esc(t.spec||"")}</textarea>
     <div class="row">
-      <div><label>Durum</label><select id="et_status">${statusOpts}</select></div>
-      <div><label>Öncelik</label><input id="et_pri" type="number" value="${t.priority||0}"></div>
+      <div><label>Status</label><select id="et_status">${statusOpts}</select></div>
+      <div><label>Priority</label><input id="et_pri" type="number" value="${t.priority||0}"></div>
     </div>
-    <label>Atanan</label><select id="et_who">${whoOpts}</select>
+    <label>Assignee</label><select id="et_who">${whoOpts}</select>
     ${dep}${art}
     ${promptBlockHTML(t)}
-    <div class="dmeta" style="margin:9px 0 2px">Oluşturan: ${esc(t.created_by||"?")} · açıldı ${ago(t.created_at)} · güncellendi ${ago(t.updated_at)}</div>
-    <div class="dsec" style="margin-top:4px"><h4 style="margin:6px 0 4px">Geçmiş</h4><div style="max-height:20vh;overflow:auto">${timelineHTML(acts)}</div></div>
-    ${msgs.length?`<div class="dsec"><h4 style="margin:6px 0 4px">İlgili mesajlar</h4>${msgsHTML(msgs)}</div>`:""}
+    <div class="dmeta" style="margin:9px 0 2px">Created by: ${esc(t.created_by||"?")} · opened ${ago(t.created_at)} · updated ${ago(t.updated_at)}</div>
+    <div class="dsec" style="margin-top:4px"><h4 style="margin:6px 0 4px">History</h4><div style="max-height:20vh;overflow:auto">${timelineHTML(acts)}</div></div>
+    ${msgs.length?`<div class="dsec"><h4 style="margin:6px 0 4px">Related messages</h4>${msgsHTML(msgs)}</div>`:""}
     <div class="actions" style="margin-top:12px">
-      <button class="btn" style="background:#dc2626;color:#fff;border-color:#dc2626" onclick="deleteTaskCard('${t.id}')">🗑 Sil</button>
+      <button class="btn" style="background:#dc2626;color:#fff;border-color:#dc2626" onclick="deleteTaskCard('${t.id}')">🗑 Delete</button>
       <span style="flex:1"></span>
-      ${(t.status==='in_progress'||t.status==='review')?`<button class="btn" style="background:#16a34a;color:#fff;border-color:#16a34a" title="Agent smoke test → branch'i main'e merge (conflict'te otomatik çözüm) → deploy → Bitti" onclick="this.closest('.overlay').remove();sendToReview('${t.id}')">🚀 Merge &amp; Deploy</button>`:''}
-      <button class="btn" onclick="this.closest('.overlay').remove()">Kapat</button>
-      <button class="btn primary" onclick="saveTaskEdit('${t.id}',this)">Kaydet</button>
+      ${(t.status==='in_progress'||t.status==='review')?`<button class="btn" style="background:#16a34a;color:#fff;border-color:#16a34a" title="Agent smoke test → merge branch into main (auto-resolve on conflict) → deploy → Done" onclick="this.closest('.overlay').remove();sendToReview('${t.id}')">🚀 Merge &amp; Deploy</button>`:''}
+      <button class="btn" onclick="this.closest('.overlay').remove()">Close</button>
+      <button class="btn primary" onclick="saveTaskEdit('${t.id}',this)">Save</button>
     </div></div>`;
   document.body.appendChild(o);document.getElementById("et_title").focus();
 }
@@ -352,27 +352,27 @@ async function saveTaskEdit(id,btn){
     status:g("et_status").value, priority:parseInt(g("et_pri").value)||0,
     assignee:who||null, assign_mode:who?"manual":"auto"};
   try{ await api("PATCH","/api/tasks/"+id,body); btn.closest(".overlay").remove(); await refresh(); }
-  catch(e){ alert("Kaydedilemedi: "+(e.message||e)); btn.disabled=false; }
+  catch(e){ alert("Could not save: "+(e.message||e)); btn.disabled=false; }
 }
 async function deleteTaskCard(id){
-  if(!confirm("Bu görev kalıcı olarak SİLİNSİN mi? Geri alınamaz.")) return;
+  if(!confirm("Permanently DELETE this task? This cannot be undone.")) return;
   try{ await api("DELETE","/api/tasks/"+id); document.querySelectorAll(".overlay").forEach(o=>o.remove()); await refresh(); }
-  catch(e){ alert("Silinemedi: "+(e.message||e)); }
+  catch(e){ alert("Could not delete: "+(e.message||e)); }
 }
 
-// Aktivite olayına ikon/etiket/hedef üret (kart + timeline paylaşır)
+// Produce icon/label/target for an activity event (shared by card + timeline)
 function actMeta(e){
   const d=e.detail||{};
   const tById=Object.fromEntries(STATE.tasks.map(t=>[t.id,t]));
   const title=d.title||(d.task_id&&tById[d.task_id]?tById[d.task_id].title:null);
   const M={
-    "task.created":{icon:"➕",label:"görev açtı",target:title},
-    "task.claimed":{icon:"🖐",label:"görevi aldı",target:title},
-    "task.updated":{icon:"✎",label:"güncelledi"+(d.status?" · "+(LANE_TR[d.status]||d.status):""),target:title},
-    "task.reclaimed":{icon:"♻",label:"görev havuza iade edildi",target:title},
-    "task.deleted":{icon:"🗑",label:"görevi sildi",target:title},
-    "agent.registered":{icon:"●",label:"panoya katıldı",target:d.machine||null},
-    "message.posted":null,   // mesajlar ayrı kart olarak gösteriliyor
+    "task.created":{icon:"➕",label:"created a task",target:title},
+    "task.claimed":{icon:"🖐",label:"claimed a task",target:title},
+    "task.updated":{icon:"✎",label:"updated"+(d.status?" · "+(LANE_TR[d.status]||d.status):""),target:title},
+    "task.reclaimed":{icon:"♻",label:"returned task to pool",target:title},
+    "task.deleted":{icon:"🗑",label:"deleted a task",target:title},
+    "agent.registered":{icon:"●",label:"joined the board",target:d.machine||null},
+    "message.posted":null,   // messages are shown as separate cards
   };
   return M[e.kind];
 }
@@ -384,7 +384,7 @@ function renderFeed(){
   const _el=document.getElementById("feed"), _sc=_el.scrollTop;
   _el.innerHTML=all.map(e=>{
     if(e.kind==="msg"){
-      const to=e.to_agent?("→ "+esc(e.to_agent)):"→ herkes";
+      const to=e.to_agent?("→ "+esc(e.to_agent)):"→ everyone";
       return `<div class="fcard msg" onclick="openDetail('msg',${e.id})">
         <div class="fc-top"><span class="fc-ico">💬</span><span class="fc-who">${esc(e.from_agent||"?")}</span>
           <span class="fc-sub">${to}</span><span class="fc-tm">${ago(e.t)}</span></div>
@@ -396,32 +396,32 @@ function renderFeed(){
         <span class="fc-tm">${ago(e.t)}</span></div>
       <div class="fc-act">${m.label}</div>
       ${m.target?`<div class="fc-tgt">${esc(m.target)}</div>`:""}</div>`;
-  }).join("")||`<div class="empty">Akış boş</div>`;
+  }).join("")||`<div class="empty">Feed is empty</div>`;
   _el.scrollTop=_sc;
 }
 
-// ── Detay görünümü (feed kartı + ajan kartı tıklanınca) ──
+// ── Detail view (when a feed card or agent card is clicked) ──
 function badge(st){return `<span class="badge b-${st}">${esc(LANE_TR[st]||st)}</span>`}
 function taskDetailHTML(t){
   const art=t.artifacts&&Object.keys(t.artifacts).length
     ?`<pre class="art">${esc(JSON.stringify(t.artifacts,null,2))}</pre>`:"";
-  const deps=(t.depends_on||[]).length?`<div class="dmeta" style="margin-top:6px">⛔ ${t.depends_on.length} bağımlılık</div>`:"";
+  const deps=(t.depends_on||[]).length?`<div class="dmeta" style="margin-top:6px">⛔ ${t.depends_on.length} dependencies</div>`:"";
   return `<div class="dtask">
     <div class="dtask-h">${badge(t.status)}<b>${esc(t.title)}</b></div>
-    <div class="dmeta">${t.assignee?("👤 "+esc(t.assignee)+" · "):""}${t.assign_mode==="manual"?"manuel":"oto atama"}${t.priority?(" · P"+t.priority):""}</div>
+    <div class="dmeta">${t.assignee?("👤 "+esc(t.assignee)+" · "):""}${t.assign_mode==="manual"?"manual":"auto assign"}${t.priority?(" · P"+t.priority):""}</div>
     ${t.spec?`<div class="dspec">${esc(t.spec)}</div>`:""}${deps}${art}</div>`;
 }
 function timelineHTML(acts){
-  if(!acts.length) return `<div class="empty">— hareket yok —</div>`;
+  if(!acts.length) return `<div class="empty">— no activity —</div>`;
   return acts.map(a=>{const m=actMeta(a)||{icon:"·",label:a.kind,target:null};
     return `<div class="tl"><span class="tl-ic">${m.icon}</span>
       <span class="tl-tx"><b>${esc(a.actor||"?")}</b> ${m.label}${m.target?(" · "+esc(m.target)):""}</span>
       <span class="tl-tm">${ago(a.created_at)}</span></div>`;}).join("");
 }
 function msgsHTML(msgs){
-  if(!msgs.length) return `<div class="empty">— mesaj yok —</div>`;
+  if(!msgs.length) return `<div class="empty">— no messages —</div>`;
   return msgs.map(m=>`<div class="dmsg"><span class="rt">${ago(m.created_at)}</span>
-    <b>${esc(m.from_agent||"?")}</b> <span class="dmeta">${m.to_agent?("→ "+esc(m.to_agent)):"→ herkes"}</span>
+    <b>${esc(m.from_agent||"?")}</b> <span class="dmeta">${m.to_agent?("→ "+esc(m.to_agent)):"→ everyone"}</span>
     <div>${esc(m.body)}</div></div>`).join("");
 }
 function showModal(title,html){
@@ -432,8 +432,8 @@ function showModal(title,html){
   document.body.appendChild(o);
 }
 function showBrief(){
-  const t=STATE.brief||'(Brief henüz tanımlı değil.)';
-  showModal("Çalışma Yönergesi — Brief",
+  const t=STATE.brief||'(No brief defined yet.)';
+  showModal("Working Brief",
     `<div class="dsec"><div class="jbody" style="max-height:58vh;overflow:auto">${esc(t)}</div></div>`);
 }
 function openDetail(kind,id){
@@ -448,17 +448,17 @@ function openDetail(kind,id){
   const taskMsgs=taskId?STATE.messages.filter(m=>m.task_id===taskId):[];
   const actorActs=STATE.activity.filter(a=>a.actor===actor).slice(0,12);
   let b="";
-  if(kind==="msg") b+=`<div class="dsec"><h4>Mesaj</h4>${msgsHTML([item])}</div>`;
+  if(kind==="msg") b+=`<div class="dsec"><h4>Message</h4>${msgsHTML([item])}</div>`;
   else{const m=actMeta(item)||{icon:"·",label:item.kind};
-    b+=`<div class="dsec"><h4>Olay</h4><div class="tl"><span class="tl-ic">${m.icon}</span>
+    b+=`<div class="dsec"><h4>Event</h4><div class="tl"><span class="tl-ic">${m.icon}</span>
       <span class="tl-tx"><b>${esc(actor||"?")}</b> ${m.label}${m.target?(" · "+esc(m.target)):""}</span>
       <span class="tl-tm">${ago(item.created_at)}</span></div></div>`;}
   if(task){
-    b+=`<div class="dsec"><h4>Görev</h4>${taskDetailHTML(task)}</div>`;
-    b+=`<div class="dsec"><h4>Bu görevin geçmişi</h4>${timelineHTML(taskActs)}</div>`;
-    if(taskMsgs.length) b+=`<div class="dsec"><h4>İlgili mesajlar</h4>${msgsHTML(taskMsgs)}</div>`;
+    b+=`<div class="dsec"><h4>Task</h4>${taskDetailHTML(task)}</div>`;
+    b+=`<div class="dsec"><h4>History of this task</h4>${timelineHTML(taskActs)}</div>`;
+    if(taskMsgs.length) b+=`<div class="dsec"><h4>Related messages</h4>${msgsHTML(taskMsgs)}</div>`;
   }
-  b+=`<div class="dsec"><h4>${esc(actor||"?")} — son hareketleri</h4>${timelineHTML(actorActs)}</div>`;
+  b+=`<div class="dsec"><h4>${esc(actor||"?")} — recent activity</h4>${timelineHTML(actorActs)}</div>`;
   showModal(head,b);
 }
 function openAgentDetail(i){
@@ -473,13 +473,13 @@ function openAgentDetail(i){
   const g=a.git||{};
   if(a.branch||g.branch) b+=`<div class="dsec"><h4>Git</h4><div class="dtask">
      <div class="dtask-h">⎇ <b>${esc(a.branch||g.branch)}</b></div>
-     <div class="dmeta">${g.ahead?`↑${g.ahead} önde &nbsp;`:''}${g.behind?`↓${g.behind} geride &nbsp;`:''}${g.conflicts?`<span style="color:var(--blocked);font-weight:700">⚠${g.conflicts} conflict</span> &nbsp;`:''}${g.dirty?'● kirli':'temiz'}</div>
+     <div class="dmeta">${g.ahead?`↑${g.ahead} ahead &nbsp;`:''}${g.behind?`↓${g.behind} behind &nbsp;`:''}${g.conflicts?`<span style="color:var(--blocked);font-weight:700">⚠${g.conflicts} conflict</span> &nbsp;`:''}${g.dirty?'● dirty':'clean'}</div>
      ${g.note?`<div class="dspec">${esc(g.note)}</div>`:''}
-     ${g.at?`<div class="dmeta" style="margin-top:5px">son: ${ago(g.at)}</div>`:''}</div></div>`;
-  if(task) b+=`<div class="dsec"><h4>Şu an üzerinde çalışıyor</h4>${taskDetailHTML(task)}</div>`;
-  else b+=`<div class="dsec"><div class="empty">Şu an bir görevde değil</div></div>`;
-  b+=`<div class="dsec"><h4>Son hareketleri</h4>${timelineHTML(acts)}</div>`;
-  if(msgs.length) b+=`<div class="dsec"><h4>Mesajları</h4>${msgsHTML(msgs)}</div>`;
+     ${g.at?`<div class="dmeta" style="margin-top:5px">last: ${ago(g.at)}</div>`:''}</div></div>`;
+  if(task) b+=`<div class="dsec"><h4>Currently working on</h4>${taskDetailHTML(task)}</div>`;
+  else b+=`<div class="dsec"><div class="empty">Not on a task right now</div></div>`;
+  b+=`<div class="dsec"><h4>Recent activity</h4>${timelineHTML(acts)}</div>`;
+  if(msgs.length) b+=`<div class="dsec"><h4>Messages</h4>${msgsHTML(msgs)}</div>`;
   showModal(esc(a.name),b);
 }
 
@@ -495,10 +495,10 @@ function wireDnD(){
       const st=l.dataset.status; const id=dragId; dragId=null; busy=false;
       if(!id) return;
       const t=STATE.tasks.find(x=>x.id===id);
-      if(st==="claimed" && (!t||t.status!=="claimed")){ openActivateModal(id); return; }   // Aktif'e al → prompt iste
-      if(st==="review" && (!t||t.status!=="review")){ sendToReview(id); return; }           // İnceleme'ye → smoke test
+      if(st==="claimed" && (!t||t.status!=="claimed")){ openActivateModal(id); return; }   // Activate → ask for prompt
+      if(st==="review" && (!t||t.status!=="review")){ sendToReview(id); return; }           // To Review → smoke test
       let patch={status:st};
-      if(st==="todo") patch.prompt_state="idle";                                            // havuza geri → prompt sıfırla
+      if(st==="todo") patch.prompt_state="idle";                                            // back to pool → reset prompt
       try{await api("PATCH","/api/tasks/"+id,patch);await refresh()}catch(_){}});
   });
 }
@@ -509,73 +509,73 @@ async function assign(id,val){
   busy=false;
 }
 
-// ── Otomasyon: Aktif'e al → Claude'a prompt ver ──
+// ── Automation: Activate → give Claude a prompt ──
 function openActivateModal(id){
   const t=STATE.tasks.find(x=>x.id===id); if(!t){refresh();return;}
   const agents=STATE.agents.map(a=>a.name);
   const whoOpts=agents.map(n=>`<option ${t.assignee===n?"selected":""}>${esc(n)}</option>`).join("");
   const o=document.createElement("div");o.className="overlay";o.onclick=e=>{if(e.target===o){o.remove();refresh();}};
-  o.innerHTML=`<div class="modal"><h3>Aktif'e al — Claude'a görev ver</h3>
+  o.innerHTML=`<div class="modal"><h3>Activate — assign a task to Claude</h3>
     <div class="hint" style="font-weight:600;color:var(--ink)">${esc(t.title)}</div>
-    <label>Kim yapacak? (kendi Claude listener'ı bu işi alır)</label>
-    <select id="ac_who"><option value="">— seç —</option>${whoOpts}</select>
-    <label>Claude'a prompt — açık ve detaylı yaz</label>
-    <textarea id="ac_prompt" style="min-height:120px" placeholder="Ne yapılacak? Hangi dosya/servis? Beklenen sonuç? Nasıl test edilir?…"></textarea>
-    <div class="hint">Kaydedince kart Aktif'e düşer; atanan kişinin Claude'u ~15-20 dk içinde işi alır.</div>
-    <div class="actions"><button class="btn" onclick="this.closest('.overlay').remove();refresh()">Vazgeç</button>
-      <button class="btn primary" onclick="submitActivate('${id}',this)">▶ Aktif'e al & gönder</button></div></div>`;
+    <label>Who will do it? (their own Claude listener picks up the job)</label>
+    <select id="ac_who"><option value="">— select —</option>${whoOpts}</select>
+    <label>Prompt for Claude — write it clearly and in detail</label>
+    <textarea id="ac_prompt" style="min-height:120px" placeholder="What needs to be done? Which file/service? Expected result? How is it tested?…"></textarea>
+    <div class="hint">Once saved, the card moves to Active; the assignee's Claude picks up the job within ~15-20 min.</div>
+    <div class="actions"><button class="btn" onclick="this.closest('.overlay').remove();refresh()">Cancel</button>
+      <button class="btn primary" onclick="submitActivate('${id}',this)">▶ Activate & send</button></div></div>`;
   document.body.appendChild(o);setTimeout(()=>document.getElementById("ac_prompt").focus(),50);
 }
 async function submitActivate(id,btn){
   const who=document.getElementById("ac_who").value;
   const p=(document.getElementById("ac_prompt").value||"").trim();
-  if(!who){alert("Önce kimin yapacağını seç.");return;}
+  if(!who){alert("First choose who will do it.");return;}
   if(!p){document.getElementById("ac_prompt").focus();return;}
   btn.disabled=true;
   try{ await api("PATCH","/api/tasks/"+id,{status:"claimed",assignee:who,assign_mode:"manual",prompt:p,prompt_state:"pending"});
     btn.closest(".overlay").remove(); await refresh(); }
-  catch(e){ alert("Hata: "+(e.message||e)); btn.disabled=false; }
+  catch(e){ alert("Error: "+(e.message||e)); btn.disabled=false; }
 }
-// ── Merge & Deploy → agent smoke → main'e merge (conflict'te otomatik çözüm) → deploy → Bitti ──
+// ── Merge & Deploy → agent smoke → merge into main (auto-resolve on conflict) → deploy → Done ──
 async function sendToReview(id){
-  if(!confirm("Merge & Deploy — agent bir smoke test yapar; uygunsa branch'i main'e MERGE eder (conflict çıkarsa iki tarafı akıllıca çözer), deploy'u tetikler ve Bitti'ye taşır. Devam?")){ await refresh(); return; }
-  try{ await api("PATCH","/api/tasks/"+id,{status:"review",prompt:"(otomatik smoke test)",prompt_state:"pending"}); await refresh(); }
-  catch(e){ alert("Hata: "+(e.message||e)); await refresh(); }
+  if(!confirm("Merge & Deploy — the agent runs a smoke test; if it passes it MERGEs the branch into main (intelligently resolving both sides on conflict), triggers the deploy, and moves it to Done. Continue?")){ await refresh(); return; }
+  try{ await api("PATCH","/api/tasks/"+id,{status:"review",prompt:"(automatic smoke test)",prompt_state:"pending"}); await refresh(); }
+  catch(e){ alert("Error: "+(e.message||e)); await refresh(); }
 }
-// ── Test'te düzeltme / (Aktif'te) ilk prompt → Claude'a gönder (kartın durumu değişmez) ──
+// ── Revision in Test / (in Active) first prompt → send to Claude (card status unchanged) ──
 async function sendRevision(id,btn){
   const ta=document.getElementById("rev_prompt"); const p=(ta.value||"").trim();
   if(!p){ta.focus();return;}
   btn.disabled=true;
   try{ await api("PATCH","/api/tasks/"+id,{prompt:p,prompt_state:"pending"});
     btn.closest(".overlay").remove(); await refresh(); }
-  catch(e){ alert("Gönderilemedi: "+(e.message||e)); btn.disabled=false; }
+  catch(e){ alert("Could not send: "+(e.message||e)); btn.disabled=false; }
 }
-// Kart modalında gösterilecek: prompt & sonuç geçmişi + duruma göre aksiyon
+// Shown in the card modal: prompt & result history + action depending on status
 function promptBlockHTML(t){
   const hist=(t.prompt_history||[]);
   const rows=hist.map(h=>{
     const isRes=h.kind==="result"; const tm=h.at?ago(h.at):"";
     const txt=esc(h.result||h.prompt||"");
     const ic=isRes?(h.ok===false?"⚠️":"🤖"):"✎";
-    const lbl=isRes?(h.ok===false?"Claude — sorun bildirdi":"Claude — sonuç")
+    const lbl=isRes?(h.ok===false?"Claude — reported a problem":"Claude — result")
                    :(esc(h.by||"?")+" — prompt"+(h.status?" ("+(LANE_TR[h.status]||h.status)+")":""));
     return `<div class="tl"><span class="tl-ic">${ic}</span><span class="tl-tx"><b>${lbl}</b>
       <div style="white-space:pre-wrap;margin-top:2px">${txt}</div></span><span class="tl-tm">${tm}</span></div>`;
-  }).join("")||`<div class="empty">— henüz prompt yok —</div>`;
-  const stTxt={pending:"⏳ Claude bekliyor (sırada)",running:"⚙ Claude çalışıyor…",done:"✓ son iş yapıldı"}[t.prompt_state]||"";
+  }).join("")||`<div class="empty">— no prompts yet —</div>`;
+  const stTxt={pending:"⏳ Claude waiting (queued)",running:"⚙ Claude working…",done:"✓ last job done"}[t.prompt_state]||"";
   let action="";
   const busyps=(t.prompt_state==="pending"||t.prompt_state==="running");
   if(t.status==="in_progress"){
-    action=`<label>Düzeltme / ekleme prompt'u — Claude'a gönder</label>
-      <textarea id="rev_prompt" style="min-height:70px" placeholder="Neyi düzeltsin / eklesin? Açık yaz…" ${busyps?"disabled":""}></textarea>
-      <div class="actions" style="margin-top:8px"><button class="btn primary" ${busyps?"disabled":""} onclick="sendRevision('${t.id}',this)">✎ Claude'a düzeltme gönder</button></div>`;
+    action=`<label>Revision / addition prompt — send to Claude</label>
+      <textarea id="rev_prompt" style="min-height:70px" placeholder="What should it fix / add? Write it clearly…" ${busyps?"disabled":""}></textarea>
+      <div class="actions" style="margin-top:8px"><button class="btn primary" ${busyps?"disabled":""} onclick="sendRevision('${t.id}',this)">✎ Send revision to Claude</button></div>`;
   } else if(t.status==="claimed" && !busyps){
-    action=`<label>Prompt yaz — Claude'a gönder</label>
-      <textarea id="rev_prompt" style="min-height:70px" placeholder="Ne yapsın? Açık ve detaylı yaz…"></textarea>
-      <div class="actions" style="margin-top:8px"><button class="btn primary" onclick="sendRevision('${t.id}',this)">▶ Claude'a gönder</button></div>`;
+    action=`<label>Write a prompt — send to Claude</label>
+      <textarea id="rev_prompt" style="min-height:70px" placeholder="What should it do? Write it clearly and in detail…"></textarea>
+      <div class="actions" style="margin-top:8px"><button class="btn primary" onclick="sendRevision('${t.id}',this)">▶ Send to Claude</button></div>`;
   }
-  return `<div class="dsec"><h4 style="margin:10px 0 4px">Claude — prompt & sonuç geçmişi${stTxt?` · <span style="color:var(--prog)">${stTxt}</span>`:""}</h4>
+  return `<div class="dsec"><h4 style="margin:10px 0 4px">Claude — prompt & result history${stTxt?` · <span style="color:var(--prog)">${stTxt}</span>`:""}</h4>
     <div style="max-height:26vh;overflow:auto">${rows}</div>${action}</div>`;
 }
 
@@ -584,21 +584,21 @@ function openTask(){
   const agents=STATE.agents.map(a=>a.name);
   const tasks=STATE.tasks.filter(t=>t.status!=="done");
   const o=document.createElement("div");o.className="overlay";o.onclick=e=>{if(e.target===o)o.remove()};
-  o.innerHTML=`<div class="modal"><h3>Yeni Görev</h3>
-    <label>Başlık</label><input id="f_title" placeholder="Ne yapılacak?">
-    <label>Açıklama</label><textarea id="f_spec" placeholder="Ayrıntı (opsiyonel)"></textarea>
+  o.innerHTML=`<div class="modal"><h3>New Task</h3>
+    <label>Title</label><input id="f_title" placeholder="What needs to be done?">
+    <label>Description</label><textarea id="f_spec" placeholder="Detail (optional)"></textarea>
     <div class="row">
-      <div><label>Öncelik</label><input id="f_pri" type="number" value="0"></div>
-      <div><label>Atama</label><select id="f_mode" onchange="document.getElementById('f_who').disabled=this.value!=='manual'">
-        <option value="auto">Otomatik havuz</option><option value="manual">Manuel</option></select></div>
+      <div><label>Priority</label><input id="f_pri" type="number" value="0"></div>
+      <div><label>Assignment</label><select id="f_mode" onchange="document.getElementById('f_who').disabled=this.value!=='manual'">
+        <option value="auto">Auto pool</option><option value="manual">Manual</option></select></div>
     </div>
-    <label>Kime (manuel)</label><select id="f_who" disabled><option value="">—</option>
+    <label>To whom (manual)</label><select id="f_who" disabled><option value="">—</option>
       ${agents.map(n=>`<option>${esc(n)}</option>`).join("")}</select>
-    <label>Bağımlı olduğu görevler</label><select id="f_dep" multiple size="3">
+    <label>Depends on tasks</label><select id="f_dep" multiple size="3">
       ${tasks.map(t=>`<option value="${t.id}">${esc(t.title)}</option>`).join("")}</select>
-    <div class="hint">Seçilen görevler bitmeden bu görev claim edilemez.</div>
-    <div class="actions"><button class="btn" onclick="this.closest('.overlay').remove()">Vazgeç</button>
-      <button class="btn primary" onclick="submitTask(this)">Oluştur</button></div></div>`;
+    <div class="hint">This task can't be claimed until the selected tasks are done.</div>
+    <div class="actions"><button class="btn" onclick="this.closest('.overlay').remove()">Cancel</button>
+      <button class="btn primary" onclick="submitTask(this)">Create</button></div></div>`;
   document.body.appendChild(o);document.getElementById("f_title").focus();
 }
 async function submitTask(btn){
@@ -611,17 +611,17 @@ async function submitTask(btn){
   if(!body.title){g("f_title").focus();return}
   btn.disabled=true;
   try{await api("POST","/api/tasks",body);btn.closest(".overlay").remove();await refresh()}
-  catch(e){btn.disabled=false;alert("Hata: "+e.message)}
+  catch(e){btn.disabled=false;alert("Error: "+e.message)}
 }
 
 // token gate
 function promptToken(){
   if(document.getElementById("tokgate"))return;
   const o=document.createElement("div");o.className="overlay";o.id="tokgate";
-  o.innerHTML=`<div class="modal"><h3>Conductor'a bağlan</h3>
-    <div class="hint">Ajan veya admin token'ını gir. Token bu tarayıcıda saklanır.</div>
+  o.innerHTML=`<div class="modal"><h3>Connect to Conductor</h3>
+    <div class="hint">Enter an agent or admin token. The token is stored in this browser.</div>
     <label>Token</label><input id="tokin" type="password" placeholder="bearer token">
-    <div class="actions"><button class="btn primary" onclick="saveToken()">Bağlan</button></div></div>`;
+    <div class="actions"><button class="btn primary" onclick="saveToken()">Connect</button></div></div>`;
   document.body.appendChild(o);setTimeout(()=>document.getElementById("tokin").focus(),50);
   document.getElementById("tokin").addEventListener("keydown",e=>{if(e.key==="Enter")saveToken()});
 }
@@ -629,23 +629,23 @@ function saveToken(){const v=document.getElementById("tokin").value.trim();if(!v
   TOKEN=v;localStorage.setItem("conductor_token",v);document.getElementById("tokgate").remove();boot();}
 function logout(){localStorage.removeItem("conductor_token");TOKEN="";promptToken();}
 
-// ── Sekme yönlendirme (hash → sayfa) ──
-function currentView(){return (location.hash.replace('#','')||'pano');}
+// ── Tab routing (hash → page) ──
+function currentView(){return (location.hash.replace('#','')||'board');}
 function showView(name){
-  document.getElementById('view-pano').style.display     = name==='pano'?'grid':'none';
-  document.getElementById('view-bellek').style.display   = name==='bellek'?'block':'none';
-  document.getElementById('view-analitik').style.display = name==='analitik'?'block':'none';
+  document.getElementById('view-board').style.display     = name==='board'?'grid':'none';
+  document.getElementById('view-memory').style.display   = name==='memory'?'block':'none';
+  document.getElementById('view-analytics').style.display = name==='analytics'?'block':'none';
   document.querySelectorAll('nav.tabs a').forEach(a=>a.classList.toggle('active',a.dataset.view===name));
   if(!TOKEN)return;
-  if(name==='bellek') loadJournal();
-  if(name==='analitik') loadAnalytics();
+  if(name==='memory') loadJournal();
+  if(name==='analytics') loadAnalytics();
 }
 window.addEventListener('hashchange',()=>showView(currentView()));
 
 function fmtTs(iso){const d=new Date(iso);const p=n=>String(n).padStart(2,'0');
   return `${p(d.getDate())}.${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
 
-// ── Bellek sayfası ──
+// ── Memory page ──
 let JOURNAL={activity:[],messages:[],memory:[]};
 async function loadJournal(){
   try{
@@ -655,17 +655,17 @@ async function loadJournal(){
     JOURNAL.messages.forEach(m=>m.from_agent&&who.add(m.from_agent));
     JOURNAL.memory.forEach(m=>m.author&&who.add(m.author));
     const sel=document.getElementById('bk_agent'),cur=sel.value;
-    sel.innerHTML='<option value="">Herkes</option>'+[...who].sort().map(n=>`<option ${cur===n?'selected':''}>${esc(n)}</option>`).join('');
-    renderBellek();
+    sel.innerHTML='<option value="">Everyone</option>'+[...who].sort().map(n=>`<option ${cur===n?'selected':''}>${esc(n)}</option>`).join('');
+    renderMemory();
   }catch(_){}
 }
 function addNote(){
   const inp=document.getElementById('bk_note'),body=inp.value.trim();if(!body)return;
   const kind=document.getElementById('bk_kind').value;
-  api("POST","/api/memory",{body,kind,author:"pano"}).then(()=>{inp.value="";loadJournal();})
-    .catch(e=>alert("Hata: "+e.message));
+  api("POST","/api/memory",{body,kind,author:"board"}).then(()=>{inp.value="";loadJournal();})
+    .catch(e=>alert("Error: "+e.message));
 }
-function renderBellek(){
+function renderMemory(){
   const agent=document.getElementById('bk_agent').value;
   const type=document.getElementById('bk_type').value;
   const q=(document.getElementById('bk_search').value||'').toLowerCase();
@@ -673,7 +673,7 @@ function renderBellek(){
   JOURNAL.activity.forEach(a=>{const m=actMeta(a);if(!m)return;
     items.push({ts:a.created_at,type:'activity',who:a.actor,icon:m.icon,text:m.label+(m.target?' · '+m.target:'')});});
   JOURNAL.messages.forEach(m=>items.push({ts:m.created_at,type:'message',who:m.from_agent,icon:'💬',
-    sub:m.to_agent?('→ '+m.to_agent):'→ herkes',body:m.body}));
+    sub:m.to_agent?('→ '+m.to_agent):'→ everyone',body:m.body}));
   JOURNAL.memory.forEach(m=>items.push({ts:m.created_at,type:'memory',who:m.author,kind:m.kind,body:m.body,
     icon:m.kind==='handoff'?'🔁':m.kind==='decision'?'⚖️':'📝'}));
   let list=items.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
@@ -681,20 +681,20 @@ function renderBellek(){
   if(type)  list=list.filter(x=>x.type===type);
   if(q)     list=list.filter(x=>((x.text||'')+(x.body||'')+(x.who||'')).toLowerCase().includes(q));
   document.getElementById('journal').innerHTML=list.slice(0,400).map(x=>{
-    const tt={activity:'olay',message:'mesaj',memory:'bellek'}[x.type];
+    const tt={activity:'event',message:'message',memory:'memory'}[x.type];
     const tag=`<span class="jtag t-${x.type}">${tt}</span>`;
-    const kt=x.kind?` <span class="jtag k-${x.kind}">${x.kind==='handoff'?'devir':x.kind==='decision'?'karar':'not'}</span>`:'';
+    const kt=x.kind?` <span class="jtag k-${x.kind}">${x.kind==='handoff'?'handoff':x.kind==='decision'?'decision':'note'}</span>`:'';
     const line=x.text?esc(x.text):(x.sub?`<span class="dmeta">${esc(x.sub)}</span>`:'');
     const body=x.body?`<div class="jbody">${esc(x.body)}</div>`:'';
     return `<div class="jrow"><span class="jts">${fmtTs(x.ts)}</span><span class="jico">${x.icon}</span>
       <span class="jtx"><span class="jwho">${esc(x.who||'?')}</span> ${tag}${kt} ${line}${body}</span></div>`;
-  }).join('')||`<div class="empty">Kayıt yok</div>`;
+  }).join('')||`<div class="empty">No records</div>`;
 }
 
-// ── Analitik sayfası ──
+// ── Analytics page ──
 async function loadAnalytics(){ try{renderAnalytics(await api("GET","/api/analytics"));}catch(_){} }
 function barChart(data,h,color){
-  if(!data.length) return `<div class="empty">Veri yok</div>`;
+  if(!data.length) return `<div class="empty">No data</div>`;
   const max=Math.max(1,...data.map(d=>d.v));
   const bw=Math.max(20,Math.min(60,Math.floor(560/data.length)));
   const W=data.length*bw, pad=22, bh=h-pad;
@@ -708,32 +708,32 @@ function barChart(data,h,color){
 function renderAnalytics(a){
   const t=a.totals;
   document.getElementById('an_cards').innerHTML=[
-    [t.events,'Toplam olay'],[t.contributors,'Katkıda bulunan'],
-    [a.tasks_status.done||0,'Tamamlanan görev'],[t.messages,'Mesaj'],[t.memory,'Bellek notu']
+    [t.events,'Total events'],[t.contributors,'Contributors'],
+    [a.tasks_status.done||0,'Completed tasks'],[t.messages,'Messages'],[t.memory,'Memory notes']
   ].map(([n,l])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
   const hours=Array.from({length:24},(_,h)=>({label:String(h).padStart(2,'0'),v:(a.by_hour.find(x=>x.hr===h)||{}).n||0}));
   const agents=a.per_agent.map(x=>({label:x.agent,v:x.n}));
   const days=a.by_day.map(x=>({label:x.d.slice(5),v:x.n}));
   const st=Object.entries(a.tasks_status).map(([k,v])=>({label:LANE_TR[k]||k,v}));
   document.getElementById('an_charts').innerHTML=
-    `<div class="chart wide"><h3>Etkinlik — saate göre (yerel saat)</h3>${barChart(hours,150,'#4f46e5')}</div>`+
-    `<div class="chart"><h3>Ajana göre etkinlik</h3>${barChart(agents,140,'#06b6d4')}</div>`+
-    `<div class="chart"><h3>Görev durumu</h3>${barChart(st,140,'#10b981')}</div>`+
-    `<div class="chart wide"><h3>Son 14 gün</h3>${barChart(days,120,'#8b5cf6')}</div>`;
+    `<div class="chart wide"><h3>Activity — by hour (local time)</h3>${barChart(hours,150,'#4f46e5')}</div>`+
+    `<div class="chart"><h3>Activity by agent</h3>${barChart(agents,140,'#06b6d4')}</div>`+
+    `<div class="chart"><h3>Task status</h3>${barChart(st,140,'#10b981')}</div>`+
+    `<div class="chart wide"><h3>Last 14 days</h3>${barChart(days,120,'#8b5cf6')}</div>`;
 }
 
 async function refresh(){
   if(busy)return;
   try{
     const s=await api("GET","/api/state");STATE=s;
-    document.getElementById("liveTxt").textContent="canlı";
-    document.getElementById("projName").textContent=s.project||"proje";
+    document.getElementById("liveTxt").textContent="live";
+    document.getElementById("projName").textContent=s.project||"project";
     renderAgents();renderUsers();renderBoard();renderFeed();
-    if(currentView()==='analitik') loadAnalytics();   // grafikler canlı; bellek elle yenilenir (scroll korunur)
-  }catch(e){ if(e.message!=="401")document.getElementById("liveTxt").textContent="bağlantı yok"; }
+    if(currentView()==='analytics') loadAnalytics();   // charts are live; memory is refreshed manually (scroll preserved)
+  }catch(e){ if(e.message!=="401")document.getElementById("liveTxt").textContent="no connection"; }
 }
 function boot(){ showView(currentView()); refresh(); }
-if(!location.hash) history.replaceState(null,'','#pano');
+if(!location.hash) history.replaceState(null,'','#board');
 if(!TOKEN)promptToken();else boot();
 setInterval(()=>{if(TOKEN)refresh()},2500);
 </script>

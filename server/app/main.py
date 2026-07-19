@@ -1,8 +1,8 @@
 """
-Conductor — bağımsız, çok-kiracılı ajan-orkestrasyon çekirdeği.
-Tek servis: bearer-auth REST API (UI + ajanlar buradan konuşur).
-İzolasyon: her token bir projeye bağlı; tüm sorgular project_id ile filtrelenir.
-Faz 1.b'de aynı çekirdek fonksiyonlar MCP tool'ları olarak da sarılacak.
+Conductor — standalone, multi-tenant agent-orchestration core.
+Single service: bearer-auth REST API (UI + agents talk through here).
+Isolation: each token is bound to one project; all queries are filtered by project_id.
+In Phase 1.b the same core functions will also be wrapped as MCP tools.
 """
 import asyncio
 import hashlib
@@ -38,12 +38,12 @@ def _hash(tok: str) -> str:
 
 
 def ser(row) -> dict:
-    """asyncpg Record → JSON-uyumlu dict (UUID/datetime → str)."""
+    """asyncpg Record → JSON-compatible dict (UUID/datetime → str)."""
     return json.loads(json.dumps(dict(row), default=str))
 
 
 async def _resolve_token(tok: str) -> dict | None:
-    """bearer token → {project_id, role, label} (yoksa None). REST + MCP paylaşır."""
+    """bearer token → {project_id, role, label} (None if absent). Shared by REST + MCP."""
     async with pool.acquire() as c:
         row = await c.fetchrow(
             "SELECT project_id, role, label FROM api_keys WHERE key_hash=$1", _hash(tok))
@@ -127,20 +127,20 @@ app.add_middleware(
 
 
 # ─────────────────────────────────────────────────────────────
-# Kimlik: bearer token → {project_id, role, label}
+# Identity: bearer token → {project_id, role, label}
 # ─────────────────────────────────────────────────────────────
 async def caller(authorization: str = Header(default="")) -> dict:
     if not authorization.lower().startswith("bearer "):
-        raise HTTPException(401, "Bearer token gerekli")
+        raise HTTPException(401, "Bearer token required")
     row = await _resolve_token(authorization.split(" ", 1)[1].strip())
     if not row:
-        raise HTTPException(401, "Geçersiz token")
+        raise HTTPException(401, "Invalid token")
     return row
 
 
 async def require_admin(who: dict = Depends(caller)) -> dict:
     if who["role"] != "admin":
-        raise HTTPException(403, "Admin yetkisi gerekli")
+        raise HTTPException(403, "Admin privileges required")
     return who
 
 
@@ -152,7 +152,7 @@ async def log(c, pid, actor, kind, detail=None):
 
 
 # ─────────────────────────────────────────────────────────────
-# Sağlık
+# Health
 # ─────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
@@ -174,7 +174,7 @@ async def ready():
 
 
 # ─────────────────────────────────────────────────────────────
-# Ajanlar
+# Agents
 # ─────────────────────────────────────────────────────────────
 class AgentReg(BaseModel):
     name: str
@@ -219,8 +219,8 @@ async def heartbeat(b: Heartbeat, who: dict = Depends(caller)):
             who["project_id"], b.name, b.status, b.note, b.current_task_id,
         )
         if not row:
-            raise HTTPException(404, "Ajan bulunamadı — önce register")
-        if row["current_task_id"]:  # canlı → mevcut görevin lease'ini tazele
+            raise HTTPException(404, "Agent not found — register first")
+        if row["current_task_id"]:  # alive → refresh the lease on the current task
             await c.execute(
                 "UPDATE tasks SET lease_until=now()+interval '15 minutes' "
                 "WHERE project_id=$1 AND id=$2 AND status IN ('claimed','in_progress')",
@@ -238,7 +238,7 @@ async def list_agents(who: dict = Depends(caller)):
 
 
 # ─────────────────────────────────────────────────────────────
-# Görevler
+# Tasks
 # ─────────────────────────────────────────────────────────────
 class TaskNew(BaseModel):
     title: str
@@ -286,9 +286,9 @@ class Claim(BaseModel):
 
 @app.post("/api/tasks/claim")
 async def claim_task(b: Claim, who: dict = Depends(caller)):
-    """Sıradaki uygun görevi atomik claim et (FOR UPDATE SKIP LOCKED).
-       auto görevleri herkes; manual görevleri yalnız atanan ajan alabilir.
-       Bağımlılıkların tümü 'done' değilse görev atlanır."""
+    """Atomically claim the next eligible task (FOR UPDATE SKIP LOCKED).
+       auto tasks can be taken by anyone; manual tasks only by the assigned agent.
+       A task is skipped unless all of its dependencies are 'done'."""
     async with pool.acquire() as c:
         async with c.transaction():
             row = await c.fetchrow(
@@ -327,14 +327,14 @@ class TaskPatch(BaseModel):
     spec: str | None = None
     title: str | None = None
     artifacts: dict | None = None
-    prompt: str | None = None            # karta gömülü Claude prompt'u
+    prompt: str | None = None            # Claude prompt embedded in the card
     prompt_state: str | None = None      # idle | pending | running | done
 
 
 @app.patch("/api/tasks/{task_id}")
 async def patch_task(task_id: str, b: TaskPatch, who: dict = Depends(caller)):
-    """Kanban + ilerleme güncellemesi (sürükle-bırak, durum, atama, artefakt, prompt).
-       prompt verilirse geçmişe (prompt_history) eklenir — kim, hangi durumda yazdı."""
+    """Kanban + progress update (drag-and-drop, status, assignment, artifact, prompt).
+       If a prompt is provided it is appended to the history (prompt_history) — who wrote it, in which status."""
     hist_entry = None
     if b.prompt is not None:
         hist_entry = [{"prompt": b.prompt, "by": who["label"], "status": b.status or "",
@@ -361,8 +361,8 @@ async def patch_task(task_id: str, b: TaskPatch, who: dict = Depends(caller)):
             b.prompt, b.prompt_state, hist_entry,
         )
         if not row:
-            raise HTTPException(404, "Görev bulunamadı")
-        # Görev bittiğinde/bırakıldığında claim eden ajanı serbest bırak
+            raise HTTPException(404, "Task not found")
+        # When the task is finished/released, free the agent that claimed it
         if b.status in ("done", "review", "blocked", "todo"):
             await c.execute(
                 """UPDATE agents SET status='idle', current_task_id=NULL, last_heartbeat=now()
@@ -375,25 +375,25 @@ async def patch_task(task_id: str, b: TaskPatch, who: dict = Depends(caller)):
 
 @app.delete("/api/tasks/{task_id}")
 async def delete_task(task_id: str, who: dict = Depends(caller)):
-    """Görevi kalıcı sil — bağımlılık dizilerini, ajan bağını ve mesaj/not referanslarını temizle."""
+    """Permanently delete the task — clean up dependency arrays, the agent binding, and message/note references."""
     async with pool.acquire() as c:
         async with c.transaction():
             t = await c.fetchrow(
                 "SELECT title FROM tasks WHERE project_id=$1 AND id=$2::uuid",
                 who["project_id"], task_id)
             if not t:
-                raise HTTPException(404, "Görev bulunamadı")
-            # başka görevlerin depends_on dizisinden çıkar (asılı bağımlılık kalmasın)
+                raise HTTPException(404, "Task not found")
+            # remove it from other tasks' depends_on arrays (no dangling dependencies left)
             await c.execute(
                 "UPDATE tasks SET depends_on=array_remove(depends_on,$2::uuid), updated_at=now() "
                 "WHERE project_id=$1 AND $2::uuid = ANY(depends_on)",
                 who["project_id"], task_id)
-            # bu görevde çalışan ajanı serbest bırak
+            # free the agent working on this task
             await c.execute(
                 "UPDATE agents SET current_task_id=NULL, status='idle' "
                 "WHERE project_id=$1 AND current_task_id=$2::uuid",
                 who["project_id"], task_id)
-            # mesaj/not referanslarını gevşet (FK varsa silmeyi engellemesin)
+            # loosen message/note references (so an FK, if any, doesn't block the delete)
             await c.execute("UPDATE messages SET task_id=NULL WHERE project_id=$1 AND task_id=$2::uuid",
                             who["project_id"], task_id)
             await c.execute("UPDATE memory SET task_id=NULL WHERE project_id=$1 AND task_id=$2::uuid",
@@ -406,8 +406,8 @@ async def delete_task(task_id: str, who: dict = Depends(caller)):
 
 
 # ─────────────────────────────────────────────────────────────
-# Otomasyon: local listener uçları (Aktif-tetikli iş kuyruğu)
-#   akış: GET /api/inbox → POST /grab (atomik al) → Claude çalışır → POST /finish (ilerlet)
+# Automation: local listener endpoints (Active-triggered work queue)
+#   flow: GET /api/inbox → POST /grab (atomic take) → Claude runs → POST /finish (advance)
 # ─────────────────────────────────────────────────────────────
 @app.get("/api/inbox")
 async def inbox(wait: int = 0, who: dict = Depends(caller)):
@@ -435,8 +435,8 @@ class GrabIn(BaseModel):
 
 @app.post("/api/tasks/{task_id}/grab")
 async def grab_task(task_id: str, b: GrabIn, who: dict = Depends(caller)):
-    """Prompt'u ATOMİK al (pending→running + lease) — ikinci poll çift çalıştırmasın.
-       Yalnız görevin atandığı kişi alabilir. Dönüş: {grabbed:true,task} | {grabbed:false}."""
+    """ATOMICALLY grab the prompt (pending→running + lease) — so a second poll doesn't run it twice.
+       Only the person the task is assigned to can grab it. Returns: {grabbed:true,task} | {grabbed:false}."""
     async with pool.acquire() as c:
         row = await c.fetchrow(
             """UPDATE tasks SET prompt_state='running',
@@ -461,21 +461,21 @@ class FinishIn(BaseModel):
 
 @app.post("/api/tasks/{task_id}/finish")
 async def finish_task(task_id: str, b: FinishIn, who: dict = Depends(caller)):
-    """Prompt işini tamamla, kartı lifecycle'a göre ilerlet + sonucu geçmişe yaz.
-       Aktif(claimed)→Test(in_progress) · Test→Test (düzeltme) · İnceleme(review)→ok?Bitti:Test."""
+    """Complete the prompt work, advance the card along the lifecycle + write the result to the history.
+       Active(claimed)→Test(in_progress) · Test→Test (fix) · Review→ok?Done:Test."""
     async with pool.acquire() as c:
         cur = await c.fetchrow(
             "SELECT status FROM tasks WHERE project_id=$1 AND id=$2::uuid",
             who["project_id"], task_id)
         if not cur:
-            raise HTTPException(404, "Görev bulunamadı")
+            raise HTTPException(404, "Task not found")
         st = cur["status"]
         if st == "claimed":
-            new_status = "in_progress"          # ilk iş bitti → Test
+            new_status = "in_progress"          # first pass done → Test
         elif st == "in_progress":
-            new_status = "in_progress"          # düzeltme bitti → Test'te kal
+            new_status = "in_progress"          # fix done → stay in Test
         elif st == "review":
-            new_status = "done" if b.ok else "in_progress"   # smoke geçti→Bitti / kaldı→Test
+            new_status = "done" if b.ok else "in_progress"   # smoke passed→Done / failed→Test
         else:
             new_status = st
         entry = [{"kind": "result", "by": who["label"], "ok": b.ok,
@@ -498,7 +498,7 @@ async def finish_task(task_id: str, b: FinishIn, who: dict = Depends(caller)):
 
 
 # ─────────────────────────────────────────────────────────────
-# Mesajlaşma (ajanlar arası + UI feed)
+# Messaging (agent-to-agent + UI feed)
 # ─────────────────────────────────────────────────────────────
 class MsgNew(BaseModel):
     body: str
@@ -523,7 +523,7 @@ async def post_message(b: MsgNew, who: dict = Depends(caller)):
 @app.get("/api/messages")
 async def poll_messages(since: int = 0, to: str | None = None, limit: int = 200,
                         who: dict = Depends(caller)):
-    """since (mesaj id) sonrası mesajlar. to verilirse: bana özel + broadcast."""
+    """Messages after `since` (message id). If `to` is provided: private-to-me + broadcast."""
     async with pool.acquire() as c:
         if to:
             rows = await c.fetch(
@@ -540,7 +540,7 @@ async def poll_messages(since: int = 0, to: str | None = None, limit: int = 200,
 
 
 # ─────────────────────────────────────────────────────────────
-# Danışsal kilitler (aynı dosyaya çift dokunma önleme)
+# Advisory locks (prevent double-touching the same file)
 # ─────────────────────────────────────────────────────────────
 class LockReq(BaseModel):
     resource: str
@@ -560,7 +560,7 @@ async def acquire_lock(b: LockReq, who: dict = Depends(caller)):
                RETURNING *""",
             who["project_id"], b.resource, b.held_by, str(b.seconds),
         )
-        if not row:  # başkası tutuyor, süresi dolmamış
+        if not row:  # held by someone else, not yet expired
             cur = await c.fetchrow(
                 "SELECT held_by, expires_at FROM locks WHERE project_id=$1 AND resource=$2",
                 who["project_id"], b.resource)
@@ -578,7 +578,7 @@ async def release_lock(resource: str, held_by: str, who: dict = Depends(caller))
 
 
 # ─────────────────────────────────────────────────────────────
-# UI için toplu durum (polling; SSE Faz 1.5'te)
+# Aggregate state for the UI (polling; SSE in Phase 1.5)
 # ─────────────────────────────────────────────────────────────
 # Board presence — which token-labels currently have the board open. Persisted in
 # the `presence` table (migration 0002) instead of an in-process dict, so it's
@@ -628,7 +628,7 @@ async def state(who: dict = Depends(caller)):
 
 
 # ─────────────────────────────────────────────────────────────
-# Admin: yeni ajan anahtarı bas + yeni kiracı (proje) aç
+# Admin: mint a new agent key + open a new tenant (project)
 # ─────────────────────────────────────────────────────────────
 class KeyNew(BaseModel):
     label: str
@@ -637,14 +637,14 @@ class KeyNew(BaseModel):
 
 @app.post("/api/admin/keys")
 async def mint_key(b: KeyNew, request: Request, who: dict = Depends(require_admin)):
-    # Düz token'ı bir kez döneriz; DB'de yalnız hash'i tutulur.
+    # We return the plaintext token once; only its hash is stored in the DB.
     raw = hashlib.sha256(os.urandom(32)).hexdigest()
     async with pool.acquire() as c:
         await c.execute(
             "INSERT INTO api_keys (project_id, label, key_hash, role) VALUES ($1,$2,$3,$4)",
             who["project_id"], b.label, _hash(raw), b.role)
     return {"label": b.label, "role": b.role, "token": raw,
-            "note": "Bu token yalnız şimdi gösterilir — kaydet."}
+            "note": "This token is shown only now — save it."}
 
 
 class TenantNew(BaseModel):
@@ -667,7 +667,7 @@ async def new_tenant(b: TenantNew, who: dict = Depends(require_admin)):
 
 
 # ─────────────────────────────────────────────────────────────
-# Bellek defteri + tam zaman-damgalı günlük (Bellek sayfası)
+# Memory ledger + full timestamped journal (Memory page)
 # ─────────────────────────────────────────────────────────────
 class MemoryNew(BaseModel):
     body: str
@@ -689,7 +689,7 @@ async def add_memory(b: MemoryNew, who: dict = Depends(caller)):
 
 @app.get("/api/journal")
 async def journal(limit: int = 300, who: dict = Depends(caller)):
-    """Bellek sayfası: aktivite + mesaj + bellek notları — geniş geçmiş, istemci birleştirir."""
+    """Memory page: activity + messages + memory notes — broad history, the client merges them."""
     pid = who["project_id"]; lim = min(max(limit, 1), 1000)
     async with pool.acquire() as c:
         acts = await c.fetch("SELECT * FROM activity WHERE project_id=$1 ORDER BY id DESC LIMIT $2", pid, lim)
@@ -701,7 +701,7 @@ async def journal(limit: int = 300, who: dict = Depends(caller)):
 
 @app.get("/api/analytics")
 async def analytics(who: dict = Depends(caller)):
-    """Analitik sayfası: ajana göre, saate göre (yerel), güne göre, görev durumu, toplamlar."""
+    """Analytics page: by agent, by hour (local), by day, task status, totals."""
     pid = who["project_id"]; tz = "Europe/Istanbul"
     async with pool.acquire() as c:
         per_agent = await c.fetch(
@@ -732,7 +732,7 @@ async def analytics(who: dict = Depends(caller)):
 
 
 # ─────────────────────────────────────────────────────────────
-# Proje brief'i (sunucuya gömülü çalışma yönergesi — ortam, git akışı, kurallar)
+# Project brief (working directive embedded in the server — environment, git flow, rules)
 # ─────────────────────────────────────────────────────────────
 class BriefIn(BaseModel):
     brief: str
@@ -754,29 +754,29 @@ async def set_brief(b: BriefIn, who: dict = Depends(require_admin)):
 
 
 # ─────────────────────────────────────────────────────────────
-# MCP katmanı — aynı çekirdeğin Claude Code ajanları için tool'ları.
-# Streamable-HTTP; kimlik bearer token'ın LABEL'ından gelir (örn: dev-a / dev-b / ci),
-# yani ajan kendini taklit edemez. Her tool project_id ile izole çalışır.
+# MCP layer — the same core's tools for Claude Code agents.
+# Streamable-HTTP; identity comes from the bearer token's LABEL (e.g. dev-a / dev-b / ci),
+# so an agent cannot impersonate someone else. Each tool runs isolated by project_id.
 # ─────────────────────────────────────────────────────────────
 mcp = FastMCP("Conductor")
 
 
 async def _mcp_ctx() -> dict:
-    """MCP isteğindeki bearer token → {project_id, role, label}. label = ajan kimliği."""
+    """The MCP request's bearer token → {project_id, role, label}. label = agent identity."""
     req = get_http_request()
     authz = req.headers.get("authorization", "")
     if not authz.lower().startswith("bearer "):
-        raise ValueError("Authorization: Bearer <token> gerekli (.mcp.json headers)")
+        raise ValueError("Authorization: Bearer <token> required (.mcp.json headers)")
     row = await _resolve_token(authz.split(" ", 1)[1].strip())
     if not row:
-        raise ValueError("Geçersiz Conductor token'ı")
+        raise ValueError("Invalid Conductor token")
     return row
 
 
 @mcp.tool
 async def whoami() -> dict:
-    """Kim olduğunu, hangi projede olduğunu ve PROJE BRIEF'ini (çalışma yönergesi:
-    ortam, git akışı, kurallar) döner. Bağlanınca İLK bunu çağır ve brief'e uy."""
+    """Returns who you are, which project you are in, and the PROJECT BRIEF (working directive:
+    environment, git flow, rules). Call this FIRST when you connect and follow the brief."""
     ctx = await _mcp_ctx()
     async with pool.acquire() as c:
         brief = await c.fetchval("SELECT brief FROM projects WHERE id=$1", ctx["project_id"])
@@ -786,10 +786,10 @@ async def whoami() -> dict:
 
 @mcp.tool
 async def sync() -> dict:
-    """Panonun anlık özeti + ASYNC CATCH-UP. Herkes farklı saatlerde çalıştığı için:
-    çalışmaya başlarken çağır → ekip durumu, açık görevlerin, okunmamış mesajların,
-    'sen en son buradayken beri olanlar' (since_last_visit) ve son devir notları
-    (recent_handoffs) döner. Bu çağrı 'buradayım' işaretini günceller."""
+    """A live snapshot of the board + ASYNC CATCH-UP. Because everyone works at different hours:
+    call it when you start working → returns team status, your open tasks, your unread messages,
+    'what happened since you were last here' (since_last_visit), and the latest handoff notes
+    (recent_handoffs). This call also updates your 'I'm here' marker."""
     ctx = await _mcp_ctx(); pid = ctx["project_id"]; me = ctx["label"]
     async with pool.acquire() as c:
         prev = await c.fetchval(
@@ -826,10 +826,10 @@ async def sync() -> dict:
 
 @mcp.tool
 async def remember(body: str, kind: str = "note", task_id: str = "") -> dict:
-    """Bellek defterine kalıcı, zaman-damgalı not yaz (sana atfedilir, herkes görür).
-    kind: note (genel bilgi) | decision (alınan karar) | handoff (devir).
-    ASYNC ÇALIŞMA İÇİN KRİTİK: işi bırakırken 'ne yaptım + sıradaki ne yapmalı' özetini
-    kind='handoff' olarak yaz; sonra gelen kişi sync()'te recent_handoffs'ta görür."""
+    """Write a permanent, timestamped note to the memory ledger (attributed to you, visible to everyone).
+    kind: note (general info) | decision (a decision made) | handoff (handover).
+    CRITICAL FOR ASYNC WORK: when you stop working, write a 'what I did + what to do next' summary
+    as kind='handoff'; the next person to arrive sees it in recent_handoffs via sync()."""
     ctx = await _mcp_ctx()
     async with pool.acquire() as c:
         row = await c.fetchrow(
@@ -842,8 +842,8 @@ async def remember(body: str, kind: str = "note", task_id: str = "") -> dict:
 
 @mcp.tool
 async def register(machine: str = "", note: str = "", branch: str = "") -> dict:
-    """Kendini ajan olarak kaydet/tazele (idle) + üzerinde çalıştığın git BRANCH'ini bildir.
-    Oturum başında bir kez çağır (branch = kendi git dalın, örn: feature/my-feature)."""
+    """Register/refresh yourself as an agent (idle) + report the git BRANCH you are working on.
+    Call it once at the start of a session (branch = your own git branch, e.g. feature/my-feature)."""
     ctx = await _mcp_ctx()
     async with pool.acquire() as c:
         row = await c.fetchrow(
@@ -862,7 +862,7 @@ async def register(machine: str = "", note: str = "", branch: str = "") -> dict:
 
 @mcp.tool
 async def heartbeat(status: str = "working", note: str = "", branch: str = "") -> dict:
-    """Canlı olduğunu + ne yaptığını (+ opsiyonel branch) bildir. status: idle|working|blocked."""
+    """Report that you are alive + what you are doing (+ optional branch). status: idle|working|blocked."""
     ctx = await _mcp_ctx()
     async with pool.acquire() as c:
         row = await c.fetchrow(
@@ -870,20 +870,20 @@ async def heartbeat(status: str = "working", note: str = "", branch: str = "") -
                  branch=COALESCE(NULLIF($5,''),branch), last_heartbeat=now()
                WHERE project_id=$1 AND name=$2 RETURNING *""",
             ctx["project_id"], ctx["label"], status, note, branch or None)
-        if row and row["current_task_id"]:  # canlı → mevcut görevin lease'ini tazele
+        if row and row["current_task_id"]:  # alive → refresh the lease on the current task
             await c.execute(
                 "UPDATE tasks SET lease_until=now()+interval '15 minutes' "
                 "WHERE project_id=$1 AND id=$2 AND status IN ('claimed','in_progress')",
                 ctx["project_id"], row["current_task_id"])
-    return ser(row) if row else {"error": "önce register çağır"}
+    return ser(row) if row else {"error": "call register first"}
 
 
 @mcp.tool
 async def report_git(branch: str = "", ahead: int = 0, behind: int = 0,
                      conflicts: int = 0, dirty: bool = False, note: str = "") -> dict:
-    """Git durumunu panele bildir: branch adı, uzaktan kaç commit ÖNDE (ahead) / GERİDE (behind),
-    çözülmemiş conflict sayısı, çalışma ağacı kirli mi (dirty). Push/pull/merge sonrası veya
-    conflict çıkınca çağır — herkes panelde görür, dallar arası çakışmayı önler."""
+    """Report git status to the board: branch name, how many commits AHEAD / BEHIND the remote,
+    number of unresolved conflicts, whether the working tree is dirty. Call it after push/pull/merge or
+    when a conflict comes up — everyone sees it on the board, which prevents clashes across branches."""
     ctx = await _mcp_ctx()
     git = {"branch": branch, "ahead": ahead, "behind": behind, "conflicts": conflicts,
            "dirty": dirty, "note": note, "at": datetime.now(timezone.utc).isoformat()}
@@ -900,8 +900,8 @@ async def report_git(branch: str = "", ahead: int = 0, behind: int = 0,
 async def create_task(title: str, spec: str = "", priority: int = 0,
                       depends_on: list[str] | None = None, assign_mode: str = "auto",
                       assignee: str = "") -> dict:
-    """Yeni görev oluştur. assign_mode: auto (havuzdan çekilir) / manual (assignee'ye kilitli).
-    depends_on: bu görev başlamadan bitmesi gereken görev id'leri."""
+    """Create a new task. assign_mode: auto (pulled from the pool) / manual (locked to the assignee).
+    depends_on: ids of tasks that must be finished before this task can start."""
     ctx = await _mcp_ctx()
     async with pool.acquire() as c:
         row = await c.fetchrow(
@@ -916,9 +916,9 @@ async def create_task(title: str, spec: str = "", priority: int = 0,
 
 @mcp.tool
 async def claim_next_task(lease_seconds: int = 1800) -> dict:
-    """Sıradaki uygun görevi ATOMİK al (SKIP LOCKED — iki ajan asla aynı görevi almaz).
-    Bağımlılıkları bitmemiş veya başkasına manuel-atanmış görevler atlanır.
-    Dönüş: {claimed:{...}} ya da {claimed:null}."""
+    """ATOMICALLY claim the next eligible task (SKIP LOCKED — two agents never take the same task).
+    Tasks with unfinished dependencies or manually assigned to someone else are skipped.
+    Returns: {claimed:{...}} or {claimed:null}."""
     ctx = await _mcp_ctx(); me = ctx["label"]
     async with pool.acquire() as c:
         async with c.transaction():
@@ -934,7 +934,7 @@ async def claim_next_task(lease_seconds: int = 1800) -> dict:
                 ctx["project_id"], me, str(lease_seconds))
             if not row:
                 return {"claimed": None,
-                        "hint": "Uygun görev yok — sync() ile panoya bak veya create_task ekle."}
+                        "hint": "No eligible task — check the board with sync() or add one with create_task."}
             await c.execute(
                 "UPDATE agents SET status='working', current_task_id=$3, last_heartbeat=now() "
                 "WHERE project_id=$1 AND name=$2", ctx["project_id"], me, row["id"])
@@ -946,8 +946,8 @@ async def claim_next_task(lease_seconds: int = 1800) -> dict:
 @mcp.tool
 async def update_task(task_id: str, status: str = "", note: str = "",
                       artifacts: dict | None = None) -> dict:
-    """Görev durumunu/çıktısını güncelle. status: in_progress|blocked|review|done|todo.
-    İş bitince status='done'. artifacts örn: {"pr":"...","commit":"...","files":[...]}."""
+    """Update a task's status/output. status: in_progress|blocked|review|done|todo.
+    When the work is done, status='done'. artifacts e.g.: {"pr":"...","commit":"...","files":[...]}."""
     ctx = await _mcp_ctx()
     art = artifacts or {}
     async with pool.acquire() as c:
@@ -958,7 +958,7 @@ async def update_task(task_id: str, status: str = "", note: str = "",
                WHERE project_id=$1 AND id=$2::uuid RETURNING *""",
             ctx["project_id"], task_id, status, art)
         if not row:
-            return {"error": "görev bulunamadı"}
+            return {"error": "task not found"}
         if status in ("done", "review", "blocked", "todo"):
             await c.execute(
                 "UPDATE agents SET status='idle', current_task_id=NULL "
@@ -970,7 +970,7 @@ async def update_task(task_id: str, status: str = "", note: str = "",
 
 @mcp.tool
 async def post_message(body: str, to_agent: str = "", task_id: str = "") -> dict:
-    """Ekibe mesaj yaz. to_agent boşsa herkese (broadcast)."""
+    """Write a message to the team. If to_agent is empty, it goes to everyone (broadcast)."""
     ctx = await _mcp_ctx()
     async with pool.acquire() as c:
         row = await c.fetchrow(
@@ -983,7 +983,7 @@ async def post_message(body: str, to_agent: str = "", task_id: str = "") -> dict
 
 @mcp.tool
 async def read_messages() -> dict:
-    """Sana gelen (özel + broadcast) okunmamış mesajları getir ve okundu işaretle."""
+    """Fetch your unread messages (private + broadcast) and mark them as read."""
     ctx = await _mcp_ctx(); me = ctx["label"]; pid = ctx["project_id"]
     async with pool.acquire() as c:
         rows = await c.fetch(
@@ -999,8 +999,8 @@ async def read_messages() -> dict:
 
 @mcp.tool
 async def acquire_file_lock(resource: str, seconds: int = 900) -> dict:
-    """Bir dosyaya/kaynağa danışsal kilit al (başka ajan aynı anda düzenlemesin).
-    resource örn: "file:services/x/y.py". Dönüş {acquired:true} veya {acquired:false,held_by}."""
+    """Acquire an advisory lock on a file/resource (so another agent doesn't edit it at the same time).
+    resource e.g.: "file:services/x/y.py". Returns {acquired:true} or {acquired:false,held_by}."""
     ctx = await _mcp_ctx()
     async with pool.acquire() as c:
         row = await c.fetchrow(
@@ -1020,7 +1020,7 @@ async def acquire_file_lock(resource: str, seconds: int = 900) -> dict:
 
 @mcp.tool
 async def release_file_lock(resource: str) -> dict:
-    """Tuttuğun danışsal kilidi bırak."""
+    """Release the advisory lock you hold."""
     ctx = await _mcp_ctx()
     async with pool.acquire() as c:
         res = await c.execute(
@@ -1033,11 +1033,11 @@ mcp_app = mcp.http_app(path="/")
 
 
 # ─────────────────────────────────────────────────────────────
-# Mount sırası: /health + /api önce tanımlı (route, kazanır) →
-# /mcp (streamable-http) → / (UI static, catch-all en son).
+# Mount order: /health + /api defined first (route, wins) →
+# /mcp (streamable-http) → / (UI static, catch-all last).
 # ─────────────────────────────────────────────────────────────
-# /mcp (slash'sız) → /mcp/ 307 yönlendirme (istemci URL'yi slash'sız verse de bağlanabilsin;
-# 307 method+body korur → MCP POST/GET/DELETE bozulmaz). Mount'tan ÖNCE tanımlı → exact "/mcp"i yakalar.
+# /mcp (without slash) → /mcp/ 307 redirect (so a client can connect even if it gives the URL without a slash;
+# 307 preserves method+body → MCP POST/GET/DELETE isn't broken). Defined BEFORE the mount → catches the exact "/mcp".
 from starlette.responses import RedirectResponse  # noqa: E402
 
 

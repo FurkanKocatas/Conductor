@@ -1,5 +1,5 @@
--- Conductor — çok-kiracılı (multi-tenant) ajan-orkestrasyon şeması
--- Katman: orgs → projects → (agents | tasks | messages | locks | activity | api_keys)
+-- Conductor — multi-tenant agent-orchestration schema
+-- Layers: orgs → projects → (agents | tasks | messages | locks | activity | api_keys)
 --
 -- ⚠ REFERENCE ONLY — NO LONGER APPLIED AT BOOT.
 -- Alembic now owns the schema (server/migrations/versions). Migration
@@ -11,7 +11,7 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ─────────────────────────────────────────────────────────────
--- Kiracı katmanı
+-- Tenant layer
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE orgs (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -29,12 +29,12 @@ CREATE TABLE projects (
   UNIQUE (org_id, slug)
 );
 
--- Kimlik: her Claude ajanı + UI kendi bearer token'ıyla gelir
+-- Identity: each Claude agent + the UI arrives with its own bearer token
 CREATE TABLE api_keys (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  label       TEXT NOT NULL,              -- serbest etiket: 'dev-a', 'dev-b', 'ci', 'ui'
-  key_hash    TEXT NOT NULL UNIQUE,       -- sha256(token) — düz token asla saklanmaz
+  label       TEXT NOT NULL,              -- free label: 'dev-a', 'dev-b', 'ci', 'ui'
+  key_hash    TEXT NOT NULL UNIQUE,       -- sha256(token) — the plain token is never stored
   role        TEXT NOT NULL DEFAULT 'agent' CHECK (role IN ('agent','ui','admin')),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_used   TIMESTAMPTZ
@@ -42,17 +42,17 @@ CREATE TABLE api_keys (
 CREATE INDEX ON api_keys (key_hash);
 
 -- ─────────────────────────────────────────────────────────────
--- Çalışma katmanı (hepsi project_id ile izole)
+-- Work layer (all isolated by project_id)
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE agents (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id      UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  name            TEXT NOT NULL,          -- ajan etiketi (serbest), örn: dev-a / dev-b / ci
+  name            TEXT NOT NULL,          -- agent label (free), e.g. dev-a / dev-b / ci
   machine         TEXT,
   status          TEXT NOT NULL DEFAULT 'offline'
                     CHECK (status IN ('offline','idle','working','blocked')),
   current_task_id UUID,
-  note            TEXT,                   -- "şu an ne yapıyor" serbest metin
+  note            TEXT,                   -- free text: "what it's doing right now"
   last_heartbeat  TIMESTAMPTZ,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (project_id, name)
@@ -62,15 +62,15 @@ CREATE TABLE tasks (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id   UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   title        TEXT NOT NULL,
-  spec         TEXT,                      -- ayrıntılı görev tanımı
+  spec         TEXT,                      -- detailed task description
   status       TEXT NOT NULL DEFAULT 'todo'
                  CHECK (status IN ('todo','claimed','in_progress','blocked','review','done')),
   assign_mode  TEXT NOT NULL DEFAULT 'auto'  CHECK (assign_mode IN ('auto','manual')),
-  assignee     TEXT,                      -- ajan adı (manuel atama veya claim eden)
-  depends_on   UUID[] NOT NULL DEFAULT '{}',   -- tüm bağımlılıklar 'done' olmadan claim edilemez
-  priority     INT NOT NULL DEFAULT 0,        -- büyük = önce
-  lease_until  TIMESTAMPTZ,               -- kilit süresi; geçerse yeniden claim edilebilir (crash direnci)
-  board_order  DOUBLE PRECISION NOT NULL DEFAULT 0,  -- kanban içi sıralama
+  assignee     TEXT,                      -- agent name (manual assignment or claimer)
+  depends_on   UUID[] NOT NULL DEFAULT '{}',   -- can't be claimed until all deps are 'done'
+  priority     INT NOT NULL DEFAULT 0,        -- higher = first
+  lease_until  TIMESTAMPTZ,               -- lock duration; if it passes, task can be re-claimed (crash resistance)
+  board_order  DOUBLE PRECISION NOT NULL DEFAULT 0,  -- ordering within a kanban column
   artifacts    JSONB NOT NULL DEFAULT '{}',   -- {pr_url, commit, files:[...]}
   created_by   TEXT,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -82,7 +82,7 @@ CREATE TABLE messages (
   id          BIGSERIAL PRIMARY KEY,
   project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   from_agent  TEXT,
-  to_agent    TEXT,                       -- NULL = broadcast (herkese)
+  to_agent    TEXT,                       -- NULL = broadcast (everyone)
   task_id     UUID,
   body        TEXT NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -90,16 +90,16 @@ CREATE TABLE messages (
 );
 CREATE INDEX ON messages (project_id, id);
 
--- Danışsal kaynak kilidi (aynı dosyaya iki ajan aynı anda dokunmasın)
+-- Advisory resource lock (so two agents don't touch the same file at once)
 CREATE TABLE locks (
   project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  resource    TEXT NOT NULL,              -- 'file:services/x/y.py' gibi
+  resource    TEXT NOT NULL,              -- e.g. 'file:services/x/y.py'
   held_by     TEXT NOT NULL,
   expires_at  TIMESTAMPTZ NOT NULL,
   PRIMARY KEY (project_id, resource)
 );
 
--- Append-only olay günlüğü (UI feed + denetim)
+-- Append-only event log (UI feed + audit)
 CREATE TABLE activity (
   id          BIGSERIAL PRIMARY KEY,
   project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -110,7 +110,7 @@ CREATE TABLE activity (
 );
 CREATE INDEX ON activity (project_id, id DESC);
 
--- Bellek defteri — ajanların kalıcı, zaman-damgalı notları/kararları/devirleri (handoff)
+-- Memory book — agents' persistent, timestamped notes/decisions/handoffs
 CREATE TABLE memory (
   id          BIGSERIAL PRIMARY KEY,
   project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -122,5 +122,5 @@ CREATE TABLE memory (
 );
 CREATE INDEX ON memory (project_id, id DESC);
 
--- Async çalışma: her ajanın en son "senkron" olduğu an (sync catch-up için)
+-- Async work: the last time each agent "synced" (for sync catch-up)
 ALTER TABLE agents ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMPTZ;
