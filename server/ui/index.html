@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conductor</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --panel:#ffffff; --ink:#1e2438; --muted:#6b7488; --line:#e5e9f2;
+    --brand:#4f46e5; --brand2:#06b6d4; --accent:#ede9fe;
+    --todo:#94a3b8; --claimed:#8b5cf6; --prog:#0ea5e9; --blocked:#ef4444; --review:#f59e0b; --done:#10b981;
+    --shadow:0 1px 3px rgba(20,30,60,.06),0 8px 24px rgba(20,30,60,.05);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer}
+  /* top bar */
+  header{display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--panel);
+         border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-.3px}
+  .brand .dot{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--brand),var(--brand2))}
+  .proj{color:var(--muted);font-weight:500;font-size:13px;padding:3px 10px;background:var(--bg);border-radius:20px}
+  .live{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;margin-left:auto}
+  .pulse{width:8px;height:8px;border-radius:50%;background:var(--done);box-shadow:0 0 0 0 rgba(16,185,129,.5);animation:p 2s infinite}
+  @keyframes p{0%{box-shadow:0 0 0 0 rgba(16,185,129,.5)}70%{box-shadow:0 0 0 7px rgba(16,185,129,0)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+  .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:9px;font-weight:600;font-size:13px}
+  .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .btn.primary:hover{background:#4338ca}
+  .btn.ghost{border:none;background:transparent;color:var(--muted);padding:6px 8px}
+  /* layout */
+  main{display:grid;grid-template-columns:240px 1fr 300px;gap:14px;padding:14px;height:calc(100vh - 59px)}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+       display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .col > h2{margin:0;padding:13px 16px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);
+            border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .scroll{overflow-y:auto;padding:10px;flex:1;min-height:0}
+  /* agents */
+  .agent{padding:11px 12px;border-radius:11px;border:1px solid var(--line);margin-bottom:9px;background:#fcfdff;cursor:pointer;transition:border-color .12s,box-shadow .12s}
+  .agent:hover{border-color:#c7d2fe;box-shadow:0 2px 8px rgba(79,70,229,.08)}
+  .agent .top{display:flex;align-items:center;gap:8px}
+  .agent .nm{font-weight:650}
+  .sdot{width:9px;height:9px;border-radius:50%;flex:none}
+  .s-working{background:var(--done)} .s-idle{background:var(--todo)} .s-blocked{background:var(--blocked)} .s-offline{background:#cbd5e1}
+  #users .urow{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:13px;border-bottom:1px solid var(--line)}
+  #users .urow .nm{font-weight:600} #users .urow .ur{margin-left:auto;font-size:11px;color:var(--muted)}
+  .agent .meta{color:var(--muted);font-size:12px;margin-top:5px;line-height:1.4}
+  .agent .task{margin-top:6px;font-size:12px;color:var(--prog);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gitline{margin-top:5px;font-size:11px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .g-ahead{color:#059669} .g-behind{color:#d97706} .g-conf{color:var(--blocked);font-weight:700} .g-dirty{color:#d97706}
+  /* board */
+  #boardWrap{padding:0;overflow:hidden}
+  #board{display:flex;gap:12px;overflow-x:auto;padding:12px;height:100%}
+  .lane{flex:0 0 236px;display:flex;flex-direction:column;background:var(--bg);border-radius:12px;min-height:0}
+  .lane > h3{margin:0;padding:11px 13px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px;position:sticky;top:0}
+  .lane h3 .cnt{margin-left:auto;color:var(--muted);font-weight:600;background:var(--panel);border-radius:20px;padding:1px 8px;font-size:11px}
+  .lane .bar{width:9px;height:9px;border-radius:3px}
+  .lane .items{overflow-y:auto;padding:4px 9px 12px;flex:1;min-height:40px}
+  .lane.drag{outline:2px dashed var(--brand);outline-offset:-4px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:9px;box-shadow:0 1px 2px rgba(20,30,60,.05);cursor:grab}
+  .card:active{cursor:grabbing}
+  .card .t{font-weight:600;line-height:1.35;margin-bottom:8px}
+  .card .foot{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .chip{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--bg);color:var(--muted);font-weight:600}
+  .chip.pri{background:#fef3c7;color:#b45309}
+  .chip.mode-auto{background:#e0e7ff;color:#4338ca} .chip.mode-manual{background:#cffafe;color:#0e7490}
+  .card select{margin-top:8px;width:100%;border:1px solid var(--line);border-radius:8px;padding:5px 7px;font-size:12px;color:var(--ink);background:#fcfdff}
+  .card .dep{color:var(--blocked);font-size:11px;margin-top:6px}
+  /* feed */
+  /* feed kartları */
+  .fcard{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:8px;cursor:pointer;transition:border-color .12s,box-shadow .12s}
+  .fcard:hover{border-color:#c7d2fe;box-shadow:0 2px 8px rgba(79,70,229,.08)}
+  .fcard.msg{background:#faf5ff}
+  .fc-top{display:flex;align-items:center;gap:7px;font-size:12px}
+  .fc-ico{flex:none}
+  .fc-who{font-weight:650}
+  .fc-sub{color:var(--muted)}
+  .fc-tm{margin-left:auto;color:var(--muted);font-size:11px;flex:none}
+  .fc-act{color:var(--muted);font-size:12.5px;margin-top:3px}
+  .fc-tgt{font-weight:600;font-size:12.5px;margin-top:3px;line-height:1.35}
+  .fc-body{font-size:12.5px;margin-top:4px;line-height:1.4}
+  /* detay modalı */
+  .modal.detail{width:min(560px,94vw);padding:0;overflow:hidden}
+  .dhead{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--line)}
+  .dhead h3{margin:0}
+  .dbody{padding:6px 20px 20px;max-height:74vh;overflow-y:auto}
+  .dsec{margin-top:16px}
+  .dsec h4{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  .dtask{border:1px solid var(--line);border-radius:11px;padding:12px;background:#fcfdff}
+  .dtask-h{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:6px;line-height:1.35}
+  .dmeta{color:var(--muted);font-size:12px}
+  .dspec{margin-top:8px;font-size:13px;line-height:1.5;white-space:pre-wrap}
+  .art{background:#f6f8fc;border-radius:8px;padding:8px;font-size:11px;overflow-x:auto;margin-top:8px}
+  .badge{font-size:11px;padding:2px 9px;border-radius:20px;font-weight:700;color:#fff;flex:none}
+  .b-todo{background:var(--todo)} .b-claimed{background:var(--claimed)} .b-in_progress{background:var(--prog)}
+  .b-blocked{background:var(--blocked)} .b-review{background:var(--review)} .b-done{background:var(--done)}
+  .tl{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+  .tl:last-child{border-bottom:none}
+  .tl-ic{flex:none} .tl-tx{flex:1;line-height:1.4} .tl-tm{color:var(--muted);font-size:11px;flex:none}
+  .dmsg{background:#faf5ff;border-radius:9px;padding:8px 10px;margin-bottom:7px;font-size:12.5px;line-height:1.45}
+  .dmsg .rt{color:var(--muted);font-size:11px;float:right}
+  .agent-hero{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:700}
+  .agent-hero .dmeta{font-weight:400}
+  /* modal + overlay */
+  .overlay{position:fixed;inset:0;background:rgba(15,20,40,.45);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:50}
+  .modal{background:var(--panel);border-radius:16px;padding:24px;width:min(460px,92vw);box-shadow:0 20px 60px rgba(20,30,60,.25)}
+  .modal h3{margin:0 0 16px}
+  .modal label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 5px}
+  .modal input,.modal textarea,.modal select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:14px;font-family:inherit;color:var(--ink)}
+  .modal textarea{resize:vertical;min-height:64px}
+  .modal .row{display:flex;gap:10px}.modal .row>*{flex:1}
+  .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+  .hint{color:var(--muted);font-size:12px;margin-top:6px}
+  .empty{color:#aab2c5;font-size:12px;text-align:center;padding:14px}
+  /* sekmeler + sayfalar */
+  nav.tabs{display:flex;gap:4px;margin-left:6px}
+  nav.tabs a{padding:7px 14px;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted);text-decoration:none}
+  nav.tabs a:hover{background:var(--bg);color:var(--ink)}
+  nav.tabs a.active{background:var(--accent);color:var(--brand)}
+  section.page{padding:16px;height:calc(100vh - 59px);overflow-y:auto}
+  .page-inner{max-width:1080px;margin:0 auto}
+  /* bellek */
+  .bk-add{display:flex;gap:8px;margin-bottom:12px}
+  .bk-add input{flex:1;border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13px;font-family:inherit;color:var(--ink)}
+  .bk-tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .bk-tools input,.bk-tools select{border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:13px;font-family:inherit;color:var(--ink);background:var(--panel)}
+  .bk-tools .search{flex:1;min-width:170px}
+  #journal{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .jrow{display:flex;gap:11px;align-items:baseline;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .jrow:last-child{border-bottom:none}
+  .jts{flex:none;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;width:96px}
+  .jico{flex:none}
+  .jtx{flex:1;font-size:13px;line-height:1.5}
+  .jwho{font-weight:650}
+  .jtag{font-size:10px;padding:1px 7px;border-radius:20px;font-weight:700}
+  .t-activity{background:#e0e7ff;color:#4338ca} .t-message{background:#f3e8ff;color:#7e22ce} .t-memory{background:#dcfce7;color:#15803d}
+  .k-handoff{background:#fef3c7;color:#b45309} .k-decision{background:#dbeafe;color:#1d4ed8} .k-note{background:#f1f5f9;color:#475569}
+  .jbody{background:#f8faff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:5px;font-size:12.5px;line-height:1.5;white-space:pre-wrap}
+  /* analitik */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:26px;font-weight:750;letter-spacing:-.5px}
+  .stat .l{color:var(--muted);font-size:12px;margin-top:2px}
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .chart{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
+  .chart h3{margin:0 0 10px;font-size:13px}
+  .chart.wide{grid-column:1 / -1}
+  @media(max-width:820px){.charts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="dot"></div>Conductor</div>
+  <span class="proj" id="projName">…</span>
+  <nav class="tabs">
+    <a href="#pano" data-view="pano">Pano</a>
+    <a href="#bellek" data-view="bellek">Bellek</a>
+    <a href="#analitik" data-view="analitik">Analitik</a>
+  </nav>
+  <div class="live"><span class="pulse"></span><span id="liveTxt">bağlanıyor…</span></div>
+  <button class="btn ghost" title="Çalışma yönergesi (Brief)" onclick="showBrief()">ℹ Brief</button>
+  <button class="btn primary" onclick="openTask()">+ Görev</button>
+  <button class="btn ghost" title="Token değiştir" onclick="logout()">⚙</button>
+</header>
+
+<main id="view-pano">
+  <section class="col">
+    <h2>Ajanlar <span id="agCount" style="color:var(--muted)"></span></h2>
+    <div class="scroll" id="agents"></div>
+      <h2>Kullanıcılar <span id="usrCount" style="color:var(--muted)"></span></h2>
+      <div id="users"></div>
+  </section>
+
+  <section class="col" id="boardWrap">
+    <div id="board"></div>
+  </section>
+
+  <section class="col">
+    <h2>Akış</h2>
+    <div class="scroll" id="feed"></div>
+  </section>
+</main>
+
+<section id="view-bellek" class="page" style="display:none"><div class="page-inner">
+  <div class="bk-add">
+    <input id="bk_note" placeholder="Bir not / karar / devir (handoff) yaz…" onkeydown="if(event.key==='Enter')addNote()">
+    <select id="bk_kind"><option value="note">Not</option><option value="decision">Karar</option><option value="handoff">Devir</option></select>
+    <button class="btn primary" onclick="addNote()">Ekle</button>
+  </div>
+  <div class="bk-tools">
+    <input class="search" id="bk_search" placeholder="Ara…" oninput="renderBellek()">
+    <select id="bk_agent" onchange="renderBellek()"><option value="">Herkes</option></select>
+    <select id="bk_type" onchange="renderBellek()">
+      <option value="">Tüm türler</option><option value="activity">Olaylar</option>
+      <option value="message">Mesajlar</option><option value="memory">Notlar</option></select>
+    <button class="btn" onclick="loadJournal()">↻ Yenile</button>
+  </div>
+  <div id="journal"></div>
+</div></section>
+
+<section id="view-analitik" class="page" style="display:none"><div class="page-inner">
+  <div class="cards" id="an_cards"></div>
+  <div class="charts" id="an_charts"></div>
+</div></section>
+
+<script>
+const LANES=[
+  ["todo","Yapılacak","var(--todo)"],["claimed","Aktif","var(--claimed)"],
+  ["in_progress","Test","var(--prog)"],["blocked","Bloke","var(--blocked)"],
+  ["review","İnceleme","var(--review)"],["done","Bitti","var(--done)"]];
+const LANE_TR=Object.fromEntries(LANES.map(l=>[l[0],l[1]]));
+let TOKEN=localStorage.getItem("conductor_token")||"";
+let STATE={agents:[],tasks:[],activity:[],messages:[]};
+let dragId=null, busy=false;
+
+function tok(){return TOKEN}
+async function api(method,path,body){
+  const r=await fetch(path,{method,headers:{"Authorization":"Bearer "+tok(),
+    ...(body?{"content-type":"application/json"}:{})},body:body?JSON.stringify(body):undefined});
+  if(r.status===401){promptToken();throw new Error("401")}
+  if(!r.ok)throw new Error(await r.text());
+  return r.status===204?null:r.json();
+}
+function esc(s){return (s??"").toString().replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function ago(iso){if(!iso)return"—";const s=(Date.now()-new Date(iso).getTime())/1000;
+  if(s<60)return Math.max(0,Math.round(s))+" sn";if(s<3600)return Math.round(s/60)+" dk";
+  if(s<86400)return Math.round(s/3600)+" sa";return Math.round(s/86400)+" g";}
+function agentStatus(a){
+  const hb=a.last_heartbeat?Date.now()-new Date(a.last_heartbeat).getTime():Infinity;
+  if(a.status==="offline"||hb>120000)return "offline";   // 2 dk sessiz → offline (dürüst roster)
+  if(a.status==="working"&&hb>60000)return "idle";
+  return a.status||"offline";
+}
+function gitBadge(a){
+  const g=a.git||{}; const p=[];
+  if(a.branch) p.push(`⎇ ${esc(a.branch)}`);
+  if(g.ahead)     p.push(`<span class="g-ahead">↑${g.ahead}</span>`);
+  if(g.behind)    p.push(`<span class="g-behind">↓${g.behind}</span>`);
+  if(g.conflicts) p.push(`<span class="g-conf">⚠${g.conflicts}</span>`);
+  if(g.dirty)     p.push(`<span class="g-dirty">●</span>`);
+  return p.length?`<div class="gitline">${p.join(' ')}</div>`:'';
+}
+
+function renderAgents(){
+  document.getElementById("agCount").textContent=STATE.agents.length;
+  const tasksById=Object.fromEntries(STATE.tasks.map(t=>[t.id,t]));
+  const _el=document.getElementById("agents"), _sc=_el.scrollTop;
+  _el.innerHTML=STATE.agents.map((a,i)=>{
+    const st=agentStatus(a);const ct=a.current_task_id&&tasksById[a.current_task_id];
+    return `<div class="agent" onclick="openAgentDetail(${i})"><div class="top"><span class="sdot s-${st}"></span>
+      <span class="nm">${esc(a.name)}</span></div>
+      <div class="meta">${esc(a.machine||"")} · ${st} · ♥ ${ago(a.last_heartbeat)}</div>
+      ${gitBadge(a)}
+      ${ct?`<div class="task">▸ ${esc(ct.title)}</div>`:""}
+      ${a.note?`<div class="meta">${esc(a.note)}</div>`:""}</div>`;
+  }).join("")||`<div class="empty">Henüz ajan yok</div>`;
+  _el.scrollTop=_sc;
+}
+
+function renderUsers(){
+  const u=(STATE.users||[]);
+  document.getElementById("usrCount").textContent=u.filter(x=>x.online).length+"/"+u.length;
+  const el=document.getElementById("users"),sc=el.scrollTop;
+  el.innerHTML=u.map(x=>`<div class="urow"><span class="sdot s-${x.online?'working':'offline'}"></span><span class="nm">${esc(x.label)}</span><span class="ur">${x.online?'\ud83d\udfe2 sayfada':'çevrimdışı'}</span></div>`).join("")||`<div class="empty">—</div>`;
+  el.scrollTop=sc;
+}
+let _boardSig="";
+function renderBoard(force){
+  const byId=Object.fromEntries(STATE.tasks.map(t=>[t.id,t]));
+  const agents=STATE.agents.map(a=>a.name);
+  // Değişiklik imzası — görsel'i etkileyen her şey. Aynıysa DOM'a DOKUNMA (scroll korunur).
+  const sig=JSON.stringify([agents, STATE.tasks.map(t=>
+    [t.id,t.status,t.assignee,t.assign_mode,t.priority,t.board_order,t.title,t.prompt_state,(t.depends_on||[]).length])]);
+  if(!force && sig===_boardSig) return;
+  _boardSig=sig;
+  const board=document.getElementById("board");
+  // Yeniden çizim gerekince scroll pozisyonlarını sakla → geri yükle (yukarı zıplama olmasın)
+  const sx=board.scrollLeft, sy={};
+  board.querySelectorAll(".items").forEach(el=>sy[el.dataset.status]=el.scrollTop);
+  board.innerHTML=LANES.map(([key,label,color])=>{
+    const items=STATE.tasks.filter(t=>t.status===key);
+    return `<div class="lane" data-status="${key}">
+      <h3><span class="bar" style="background:${color}"></span>${label}<span class="cnt">${items.length}</span></h3>
+      <div class="items" data-status="${key}">${items.map(t=>card(t,byId,agents)).join("")||""}</div></div>`;
+  }).join("");
+  wireDnD();
+  board.scrollLeft=sx;
+  board.querySelectorAll(".items").forEach(el=>{if(sy[el.dataset.status]!=null)el.scrollTop=sy[el.dataset.status];});
+}
+function psChip(t){
+  const m={pending:['⏳ Claude sırada','#fef3c7','#b45309'],
+           running:['⚙ Claude çalışıyor','#dbeafe','#1d4ed8'],
+           done:['✓ yapıldı','#dcfce7','#15803d']}[t.prompt_state];
+  return m?`<span class="chip" style="background:${m[1]};color:${m[2]}">${m[0]}</span>`:'';
+}
+function card(t,byId,agents){
+  const unmet=(t.depends_on||[]).filter(id=>byId[id]&&byId[id].status!=="done").length;
+  const opt=`<option value="">— otomatik havuz —</option>`+agents.map(n=>
+    `<option value="${esc(n)}" ${t.assignee===n?"selected":""}>${esc(n)}</option>`).join("");
+  return `<div class="card" draggable="true" data-id="${t.id}">
+    <div class="t" onclick="openTaskCard('${t.id}')" style="cursor:pointer" title="Detay / prompt / düzeltme / sil">${esc(t.title)}</div>
+    <div class="foot">
+      ${t.priority?`<span class="chip pri">P${t.priority}</span>`:""}
+      <span class="chip mode-${t.assign_mode}">${t.assign_mode==="manual"?"manuel":"oto"}</span>
+      ${t.assignee?`<span class="chip">👤 ${esc(t.assignee)}</span>`:""}
+      ${psChip(t)}
+    </div>
+    ${unmet?`<div class="dep">⛔ ${unmet} bağımlılık bekliyor</div>`:""}
+    <select onchange="assign('${t.id}',this.value)" onmousedown="event.stopPropagation()">${opt}</select>
+  </div>`;
+}
+
+// ── Görev kartı: başlığa tıkla → detay / düzenle / sil ──
+function openTaskCard(id){
+  const t=STATE.tasks.find(x=>x.id===id); if(!t)return;
+  const agents=STATE.agents.map(a=>a.name);
+  const acts=STATE.activity.filter(a=>(a.detail||{}).task_id===id);
+  const msgs=STATE.messages.filter(m=>m.task_id===id);
+  const statusOpts=LANES.map(([k,l])=>`<option value="${k}" ${t.status===k?"selected":""}>${l}</option>`).join("");
+  const whoOpts=`<option value="">— otomatik havuz —</option>`+agents.map(n=>`<option ${t.assignee===n?"selected":""}>${esc(n)}</option>`).join("");
+  const art=t.artifacts&&Object.keys(t.artifacts).length
+    ?`<label>Çıktılar (artifacts)</label><pre class="art">${esc(JSON.stringify(t.artifacts,null,2))}</pre>`:"";
+  const dep=(t.depends_on||[]).length?`<div class="hint">⛔ ${t.depends_on.length} bağımlılık tanımlı</div>`:"";
+  const o=document.createElement("div");o.className="overlay";o.onclick=e=>{if(e.target===o)o.remove()};
+  o.innerHTML=`<div class="modal"><h3>Görev — Detay / Düzenle</h3>
+    <label>Başlık</label><input id="et_title" value="${esc(t.title)}">
+    <label>Açıklama / Spec</label><textarea id="et_spec" style="min-height:88px">${esc(t.spec||"")}</textarea>
+    <div class="row">
+      <div><label>Durum</label><select id="et_status">${statusOpts}</select></div>
+      <div><label>Öncelik</label><input id="et_pri" type="number" value="${t.priority||0}"></div>
+    </div>
+    <label>Atanan</label><select id="et_who">${whoOpts}</select>
+    ${dep}${art}
+    ${promptBlockHTML(t)}
+    <div class="dmeta" style="margin:9px 0 2px">Oluşturan: ${esc(t.created_by||"?")} · açıldı ${ago(t.created_at)} · güncellendi ${ago(t.updated_at)}</div>
+    <div class="dsec" style="margin-top:4px"><h4 style="margin:6px 0 4px">Geçmiş</h4><div style="max-height:20vh;overflow:auto">${timelineHTML(acts)}</div></div>
+    ${msgs.length?`<div class="dsec"><h4 style="margin:6px 0 4px">İlgili mesajlar</h4>${msgsHTML(msgs)}</div>`:""}
+    <div class="actions" style="margin-top:12px">
+      <button class="btn" style="background:#dc2626;color:#fff;border-color:#dc2626" onclick="deleteTaskCard('${t.id}')">🗑 Sil</button>
+      <span style="flex:1"></span>
+      ${(t.status==='in_progress'||t.status==='review')?`<button class="btn" style="background:#16a34a;color:#fff;border-color:#16a34a" title="Agent smoke test → branch'i main'e merge (conflict'te otomatik çözüm) → deploy → Bitti" onclick="this.closest('.overlay').remove();sendToReview('${t.id}')">🚀 Merge &amp; Deploy</button>`:''}
+      <button class="btn" onclick="this.closest('.overlay').remove()">Kapat</button>
+      <button class="btn primary" onclick="saveTaskEdit('${t.id}',this)">Kaydet</button>
+    </div></div>`;
+  document.body.appendChild(o);document.getElementById("et_title").focus();
+}
+async function saveTaskEdit(id,btn){
+  btn.disabled=true;
+  const g=x=>document.getElementById(x);
+  const who=g("et_who").value;
+  const body={title:g("et_title").value.trim(), spec:g("et_spec").value.trim(),
+    status:g("et_status").value, priority:parseInt(g("et_pri").value)||0,
+    assignee:who||null, assign_mode:who?"manual":"auto"};
+  try{ await api("PATCH","/api/tasks/"+id,body); btn.closest(".overlay").remove(); await refresh(); }
+  catch(e){ alert("Kaydedilemedi: "+(e.message||e)); btn.disabled=false; }
+}
+async function deleteTaskCard(id){
+  if(!confirm("Bu görev kalıcı olarak SİLİNSİN mi? Geri alınamaz.")) return;
+  try{ await api("DELETE","/api/tasks/"+id); document.querySelectorAll(".overlay").forEach(o=>o.remove()); await refresh(); }
+  catch(e){ alert("Silinemedi: "+(e.message||e)); }
+}
+
+// Aktivite olayına ikon/etiket/hedef üret (kart + timeline paylaşır)
+function actMeta(e){
+  const d=e.detail||{};
+  const tById=Object.fromEntries(STATE.tasks.map(t=>[t.id,t]));
+  const title=d.title||(d.task_id&&tById[d.task_id]?tById[d.task_id].title:null);
+  const M={
+    "task.created":{icon:"➕",label:"görev açtı",target:title},
+    "task.claimed":{icon:"🖐",label:"görevi aldı",target:title},
+    "task.updated":{icon:"✎",label:"güncelledi"+(d.status?" · "+(LANE_TR[d.status]||d.status):""),target:title},
+    "task.reclaimed":{icon:"♻",label:"görev havuza iade edildi",target:title},
+    "task.deleted":{icon:"🗑",label:"görevi sildi",target:title},
+    "agent.registered":{icon:"●",label:"panoya katıldı",target:d.machine||null},
+    "message.posted":null,   // mesajlar ayrı kart olarak gösteriliyor
+  };
+  return M[e.kind];
+}
+
+function renderFeed(){
+  const acts=STATE.activity.map(a=>({t:a.created_at,kind:"act",...a}));
+  const msgs=STATE.messages.map(m=>({t:m.created_at,kind:"msg",...m}));
+  const all=[...acts,...msgs].sort((x,y)=>new Date(y.t)-new Date(x.t)).slice(0,60);
+  const _el=document.getElementById("feed"), _sc=_el.scrollTop;
+  _el.innerHTML=all.map(e=>{
+    if(e.kind==="msg"){
+      const to=e.to_agent?("→ "+esc(e.to_agent)):"→ herkes";
+      return `<div class="fcard msg" onclick="openDetail('msg',${e.id})">
+        <div class="fc-top"><span class="fc-ico">💬</span><span class="fc-who">${esc(e.from_agent||"?")}</span>
+          <span class="fc-sub">${to}</span><span class="fc-tm">${ago(e.t)}</span></div>
+        <div class="fc-body">${esc(e.body)}</div></div>`;
+    }
+    const m=actMeta(e); if(!m) return "";
+    return `<div class="fcard" onclick="openDetail('act',${e.id})">
+      <div class="fc-top"><span class="fc-ico">${m.icon}</span><span class="fc-who">${esc(e.actor||"?")}</span>
+        <span class="fc-tm">${ago(e.t)}</span></div>
+      <div class="fc-act">${m.label}</div>
+      ${m.target?`<div class="fc-tgt">${esc(m.target)}</div>`:""}</div>`;
+  }).join("")||`<div class="empty">Akış boş</div>`;
+  _el.scrollTop=_sc;
+}
+
+// ── Detay görünümü (feed kartı + ajan kartı tıklanınca) ──
+function badge(st){return `<span class="badge b-${st}">${esc(LANE_TR[st]||st)}</span>`}
+function taskDetailHTML(t){
+  const art=t.artifacts&&Object.keys(t.artifacts).length
+    ?`<pre class="art">${esc(JSON.stringify(t.artifacts,null,2))}</pre>`:"";
+  const deps=(t.depends_on||[]).length?`<div class="dmeta" style="margin-top:6px">⛔ ${t.depends_on.length} bağımlılık</div>`:"";
+  return `<div class="dtask">
+    <div class="dtask-h">${badge(t.status)}<b>${esc(t.title)}</b></div>
+    <div class="dmeta">${t.assignee?("👤 "+esc(t.assignee)+" · "):""}${t.assign_mode==="manual"?"manuel":"oto atama"}${t.priority?(" · P"+t.priority):""}</div>
+    ${t.spec?`<div class="dspec">${esc(t.spec)}</div>`:""}${deps}${art}</div>`;
+}
+function timelineHTML(acts){
+  if(!acts.length) return `<div class="empty">— hareket yok —</div>`;
+  return acts.map(a=>{const m=actMeta(a)||{icon:"·",label:a.kind,target:null};
+    return `<div class="tl"><span class="tl-ic">${m.icon}</span>
+      <span class="tl-tx"><b>${esc(a.actor||"?")}</b> ${m.label}${m.target?(" · "+esc(m.target)):""}</span>
+      <span class="tl-tm">${ago(a.created_at)}</span></div>`;}).join("");
+}
+function msgsHTML(msgs){
+  if(!msgs.length) return `<div class="empty">— mesaj yok —</div>`;
+  return msgs.map(m=>`<div class="dmsg"><span class="rt">${ago(m.created_at)}</span>
+    <b>${esc(m.from_agent||"?")}</b> <span class="dmeta">${m.to_agent?("→ "+esc(m.to_agent)):"→ herkes"}</span>
+    <div>${esc(m.body)}</div></div>`).join("");
+}
+function showModal(title,html){
+  const o=document.createElement("div");o.className="overlay";o.onclick=e=>{if(e.target===o)o.remove()};
+  o.innerHTML=`<div class="modal detail"><div class="dhead"><h3>${title}</h3>
+    <button class="btn ghost" onclick="this.closest('.overlay').remove()">✕</button></div>
+    <div class="dbody">${html}</div></div>`;
+  document.body.appendChild(o);
+}
+function showBrief(){
+  const t=STATE.brief||'(Brief henüz tanımlı değil.)';
+  showModal("Çalışma Yönergesi — Brief",
+    `<div class="dsec"><div class="jbody" style="max-height:58vh;overflow:auto">${esc(t)}</div></div>`);
+}
+function openDetail(kind,id){
+  let item,taskId=null,actor=null,head="";
+  if(kind==="act"){ item=STATE.activity.find(a=>a.id===id); if(!item)return;
+    actor=item.actor; taskId=(item.detail||{}).task_id||null;
+    const m=actMeta(item)||{icon:"·",label:item.kind}; head=`${m.icon} ${esc(actor||"?")}`;
+  } else { item=STATE.messages.find(m=>m.id===id); if(!item)return;
+    actor=item.from_agent; taskId=item.task_id||null; head=`💬 ${esc(actor||"?")}`; }
+  const task=taskId?STATE.tasks.find(t=>t.id===taskId):null;
+  const taskActs=taskId?STATE.activity.filter(a=>(a.detail||{}).task_id===taskId):[];
+  const taskMsgs=taskId?STATE.messages.filter(m=>m.task_id===taskId):[];
+  const actorActs=STATE.activity.filter(a=>a.actor===actor).slice(0,12);
+  let b="";
+  if(kind==="msg") b+=`<div class="dsec"><h4>Mesaj</h4>${msgsHTML([item])}</div>`;
+  else{const m=actMeta(item)||{icon:"·",label:item.kind};
+    b+=`<div class="dsec"><h4>Olay</h4><div class="tl"><span class="tl-ic">${m.icon}</span>
+      <span class="tl-tx"><b>${esc(actor||"?")}</b> ${m.label}${m.target?(" · "+esc(m.target)):""}</span>
+      <span class="tl-tm">${ago(item.created_at)}</span></div></div>`;}
+  if(task){
+    b+=`<div class="dsec"><h4>Görev</h4>${taskDetailHTML(task)}</div>`;
+    b+=`<div class="dsec"><h4>Bu görevin geçmişi</h4>${timelineHTML(taskActs)}</div>`;
+    if(taskMsgs.length) b+=`<div class="dsec"><h4>İlgili mesajlar</h4>${msgsHTML(taskMsgs)}</div>`;
+  }
+  b+=`<div class="dsec"><h4>${esc(actor||"?")} — son hareketleri</h4>${timelineHTML(actorActs)}</div>`;
+  showModal(head,b);
+}
+function openAgentDetail(i){
+  const a=STATE.agents[i]; if(!a)return;
+  const st=agentStatus(a);
+  const task=a.current_task_id?STATE.tasks.find(t=>t.id===a.current_task_id):null;
+  const acts=STATE.activity.filter(x=>x.actor===a.name).slice(0,15);
+  const msgs=STATE.messages.filter(m=>m.from_agent===a.name||m.to_agent===a.name).slice(0,10);
+  let b=`<div class="dsec"><div class="agent-hero"><span class="sdot s-${st}"></span>${esc(a.name)}
+     <span class="dmeta">${esc(a.machine||"")} · ${st} · ♥ ${ago(a.last_heartbeat)}</span></div>
+     ${a.note?`<div class="dspec">${esc(a.note)}</div>`:""}</div>`;
+  const g=a.git||{};
+  if(a.branch||g.branch) b+=`<div class="dsec"><h4>Git</h4><div class="dtask">
+     <div class="dtask-h">⎇ <b>${esc(a.branch||g.branch)}</b></div>
+     <div class="dmeta">${g.ahead?`↑${g.ahead} önde &nbsp;`:''}${g.behind?`↓${g.behind} geride &nbsp;`:''}${g.conflicts?`<span style="color:var(--blocked);font-weight:700">⚠${g.conflicts} conflict</span> &nbsp;`:''}${g.dirty?'● kirli':'temiz'}</div>
+     ${g.note?`<div class="dspec">${esc(g.note)}</div>`:''}
+     ${g.at?`<div class="dmeta" style="margin-top:5px">son: ${ago(g.at)}</div>`:''}</div></div>`;
+  if(task) b+=`<div class="dsec"><h4>Şu an üzerinde çalışıyor</h4>${taskDetailHTML(task)}</div>`;
+  else b+=`<div class="dsec"><div class="empty">Şu an bir görevde değil</div></div>`;
+  b+=`<div class="dsec"><h4>Son hareketleri</h4>${timelineHTML(acts)}</div>`;
+  if(msgs.length) b+=`<div class="dsec"><h4>Mesajları</h4>${msgsHTML(msgs)}</div>`;
+  showModal(esc(a.name),b);
+}
+
+function wireDnD(){
+  document.querySelectorAll(".card").forEach(c=>{
+    c.addEventListener("dragstart",e=>{dragId=c.dataset.id;busy=true;e.dataTransfer.effectAllowed="move"});
+    c.addEventListener("dragend",()=>{busy=false;document.querySelectorAll(".lane").forEach(l=>l.classList.remove("drag"))});
+  });
+  document.querySelectorAll(".lane").forEach(l=>{
+    l.addEventListener("dragover",e=>{e.preventDefault();l.classList.add("drag")});
+    l.addEventListener("dragleave",()=>l.classList.remove("drag"));
+    l.addEventListener("drop",async e=>{e.preventDefault();l.classList.remove("drag");
+      const st=l.dataset.status; const id=dragId; dragId=null; busy=false;
+      if(!id) return;
+      const t=STATE.tasks.find(x=>x.id===id);
+      if(st==="claimed" && (!t||t.status!=="claimed")){ openActivateModal(id); return; }   // Aktif'e al → prompt iste
+      if(st==="review" && (!t||t.status!=="review")){ sendToReview(id); return; }           // İnceleme'ye → smoke test
+      let patch={status:st};
+      if(st==="todo") patch.prompt_state="idle";                                            // havuza geri → prompt sıfırla
+      try{await api("PATCH","/api/tasks/"+id,patch);await refresh()}catch(_){}});
+  });
+}
+async function assign(id,val){
+  busy=true;
+  try{ await api("PATCH","/api/tasks/"+id, val?{assignee:val,assign_mode:"manual"}:{assign_mode:"auto"}); await refresh(); }
+  catch(_){}
+  busy=false;
+}
+
+// ── Otomasyon: Aktif'e al → Claude'a prompt ver ──
+function openActivateModal(id){
+  const t=STATE.tasks.find(x=>x.id===id); if(!t){refresh();return;}
+  const agents=STATE.agents.map(a=>a.name);
+  const whoOpts=agents.map(n=>`<option ${t.assignee===n?"selected":""}>${esc(n)}</option>`).join("");
+  const o=document.createElement("div");o.className="overlay";o.onclick=e=>{if(e.target===o){o.remove();refresh();}};
+  o.innerHTML=`<div class="modal"><h3>Aktif'e al — Claude'a görev ver</h3>
+    <div class="hint" style="font-weight:600;color:var(--ink)">${esc(t.title)}</div>
+    <label>Kim yapacak? (kendi Claude listener'ı bu işi alır)</label>
+    <select id="ac_who"><option value="">— seç —</option>${whoOpts}</select>
+    <label>Claude'a prompt — açık ve detaylı yaz</label>
+    <textarea id="ac_prompt" style="min-height:120px" placeholder="Ne yapılacak? Hangi dosya/servis? Beklenen sonuç? Nasıl test edilir?…"></textarea>
+    <div class="hint">Kaydedince kart Aktif'e düşer; atanan kişinin Claude'u ~15-20 dk içinde işi alır.</div>
+    <div class="actions"><button class="btn" onclick="this.closest('.overlay').remove();refresh()">Vazgeç</button>
+      <button class="btn primary" onclick="submitActivate('${id}',this)">▶ Aktif'e al & gönder</button></div></div>`;
+  document.body.appendChild(o);setTimeout(()=>document.getElementById("ac_prompt").focus(),50);
+}
+async function submitActivate(id,btn){
+  const who=document.getElementById("ac_who").value;
+  const p=(document.getElementById("ac_prompt").value||"").trim();
+  if(!who){alert("Önce kimin yapacağını seç.");return;}
+  if(!p){document.getElementById("ac_prompt").focus();return;}
+  btn.disabled=true;
+  try{ await api("PATCH","/api/tasks/"+id,{status:"claimed",assignee:who,assign_mode:"manual",prompt:p,prompt_state:"pending"});
+    btn.closest(".overlay").remove(); await refresh(); }
+  catch(e){ alert("Hata: "+(e.message||e)); btn.disabled=false; }
+}
+// ── Merge & Deploy → agent smoke → main'e merge (conflict'te otomatik çözüm) → deploy → Bitti ──
+async function sendToReview(id){
+  if(!confirm("Merge & Deploy — agent bir smoke test yapar; uygunsa branch'i main'e MERGE eder (conflict çıkarsa iki tarafı akıllıca çözer), deploy'u tetikler ve Bitti'ye taşır. Devam?")){ await refresh(); return; }
+  try{ await api("PATCH","/api/tasks/"+id,{status:"review",prompt:"(otomatik smoke test)",prompt_state:"pending"}); await refresh(); }
+  catch(e){ alert("Hata: "+(e.message||e)); await refresh(); }
+}
+// ── Test'te düzeltme / (Aktif'te) ilk prompt → Claude'a gönder (kartın durumu değişmez) ──
+async function sendRevision(id,btn){
+  const ta=document.getElementById("rev_prompt"); const p=(ta.value||"").trim();
+  if(!p){ta.focus();return;}
+  btn.disabled=true;
+  try{ await api("PATCH","/api/tasks/"+id,{prompt:p,prompt_state:"pending"});
+    btn.closest(".overlay").remove(); await refresh(); }
+  catch(e){ alert("Gönderilemedi: "+(e.message||e)); btn.disabled=false; }
+}
+// Kart modalında gösterilecek: prompt & sonuç geçmişi + duruma göre aksiyon
+function promptBlockHTML(t){
+  const hist=(t.prompt_history||[]);
+  const rows=hist.map(h=>{
+    const isRes=h.kind==="result"; const tm=h.at?ago(h.at):"";
+    const txt=esc(h.result||h.prompt||"");
+    const ic=isRes?(h.ok===false?"⚠️":"🤖"):"✎";
+    const lbl=isRes?(h.ok===false?"Claude — sorun bildirdi":"Claude — sonuç")
+                   :(esc(h.by||"?")+" — prompt"+(h.status?" ("+(LANE_TR[h.status]||h.status)+")":""));
+    return `<div class="tl"><span class="tl-ic">${ic}</span><span class="tl-tx"><b>${lbl}</b>
+      <div style="white-space:pre-wrap;margin-top:2px">${txt}</div></span><span class="tl-tm">${tm}</span></div>`;
+  }).join("")||`<div class="empty">— henüz prompt yok —</div>`;
+  const stTxt={pending:"⏳ Claude bekliyor (sırada)",running:"⚙ Claude çalışıyor…",done:"✓ son iş yapıldı"}[t.prompt_state]||"";
+  let action="";
+  const busyps=(t.prompt_state==="pending"||t.prompt_state==="running");
+  if(t.status==="in_progress"){
+    action=`<label>Düzeltme / ekleme prompt'u — Claude'a gönder</label>
+      <textarea id="rev_prompt" style="min-height:70px" placeholder="Neyi düzeltsin / eklesin? Açık yaz…" ${busyps?"disabled":""}></textarea>
+      <div class="actions" style="margin-top:8px"><button class="btn primary" ${busyps?"disabled":""} onclick="sendRevision('${t.id}',this)">✎ Claude'a düzeltme gönder</button></div>`;
+  } else if(t.status==="claimed" && !busyps){
+    action=`<label>Prompt yaz — Claude'a gönder</label>
+      <textarea id="rev_prompt" style="min-height:70px" placeholder="Ne yapsın? Açık ve detaylı yaz…"></textarea>
+      <div class="actions" style="margin-top:8px"><button class="btn primary" onclick="sendRevision('${t.id}',this)">▶ Claude'a gönder</button></div>`;
+  }
+  return `<div class="dsec"><h4 style="margin:10px 0 4px">Claude — prompt & sonuç geçmişi${stTxt?` · <span style="color:var(--prog)">${stTxt}</span>`:""}</h4>
+    <div style="max-height:26vh;overflow:auto">${rows}</div>${action}</div>`;
+}
+
+// create task modal
+function openTask(){
+  const agents=STATE.agents.map(a=>a.name);
+  const tasks=STATE.tasks.filter(t=>t.status!=="done");
+  const o=document.createElement("div");o.className="overlay";o.onclick=e=>{if(e.target===o)o.remove()};
+  o.innerHTML=`<div class="modal"><h3>Yeni Görev</h3>
+    <label>Başlık</label><input id="f_title" placeholder="Ne yapılacak?">
+    <label>Açıklama</label><textarea id="f_spec" placeholder="Ayrıntı (opsiyonel)"></textarea>
+    <div class="row">
+      <div><label>Öncelik</label><input id="f_pri" type="number" value="0"></div>
+      <div><label>Atama</label><select id="f_mode" onchange="document.getElementById('f_who').disabled=this.value!=='manual'">
+        <option value="auto">Otomatik havuz</option><option value="manual">Manuel</option></select></div>
+    </div>
+    <label>Kime (manuel)</label><select id="f_who" disabled><option value="">—</option>
+      ${agents.map(n=>`<option>${esc(n)}</option>`).join("")}</select>
+    <label>Bağımlı olduğu görevler</label><select id="f_dep" multiple size="3">
+      ${tasks.map(t=>`<option value="${t.id}">${esc(t.title)}</option>`).join("")}</select>
+    <div class="hint">Seçilen görevler bitmeden bu görev claim edilemez.</div>
+    <div class="actions"><button class="btn" onclick="this.closest('.overlay').remove()">Vazgeç</button>
+      <button class="btn primary" onclick="submitTask(this)">Oluştur</button></div></div>`;
+  document.body.appendChild(o);document.getElementById("f_title").focus();
+}
+async function submitTask(btn){
+  const g=id=>document.getElementById(id);
+  const dep=[...g("f_dep").selectedOptions].map(o=>o.value);
+  const mode=g("f_mode").value;
+  const body={title:g("f_title").value.trim(),spec:g("f_spec").value.trim()||null,
+    priority:parseInt(g("f_pri").value)||0,assign_mode:mode,
+    assignee:mode==="manual"?(g("f_who").value||null):null,depends_on:dep};
+  if(!body.title){g("f_title").focus();return}
+  btn.disabled=true;
+  try{await api("POST","/api/tasks",body);btn.closest(".overlay").remove();await refresh()}
+  catch(e){btn.disabled=false;alert("Hata: "+e.message)}
+}
+
+// token gate
+function promptToken(){
+  if(document.getElementById("tokgate"))return;
+  const o=document.createElement("div");o.className="overlay";o.id="tokgate";
+  o.innerHTML=`<div class="modal"><h3>Conductor'a bağlan</h3>
+    <div class="hint">Ajan veya admin token'ını gir. Token bu tarayıcıda saklanır.</div>
+    <label>Token</label><input id="tokin" type="password" placeholder="bearer token">
+    <div class="actions"><button class="btn primary" onclick="saveToken()">Bağlan</button></div></div>`;
+  document.body.appendChild(o);setTimeout(()=>document.getElementById("tokin").focus(),50);
+  document.getElementById("tokin").addEventListener("keydown",e=>{if(e.key==="Enter")saveToken()});
+}
+function saveToken(){const v=document.getElementById("tokin").value.trim();if(!v)return;
+  TOKEN=v;localStorage.setItem("conductor_token",v);document.getElementById("tokgate").remove();boot();}
+function logout(){localStorage.removeItem("conductor_token");TOKEN="";promptToken();}
+
+// ── Sekme yönlendirme (hash → sayfa) ──
+function currentView(){return (location.hash.replace('#','')||'pano');}
+function showView(name){
+  document.getElementById('view-pano').style.display     = name==='pano'?'grid':'none';
+  document.getElementById('view-bellek').style.display   = name==='bellek'?'block':'none';
+  document.getElementById('view-analitik').style.display = name==='analitik'?'block':'none';
+  document.querySelectorAll('nav.tabs a').forEach(a=>a.classList.toggle('active',a.dataset.view===name));
+  if(!TOKEN)return;
+  if(name==='bellek') loadJournal();
+  if(name==='analitik') loadAnalytics();
+}
+window.addEventListener('hashchange',()=>showView(currentView()));
+
+function fmtTs(iso){const d=new Date(iso);const p=n=>String(n).padStart(2,'0');
+  return `${p(d.getDate())}.${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
+
+// ── Bellek sayfası ──
+let JOURNAL={activity:[],messages:[],memory:[]};
+async function loadJournal(){
+  try{
+    JOURNAL=await api("GET","/api/journal?limit=500");
+    const who=new Set();
+    JOURNAL.activity.forEach(a=>a.actor&&who.add(a.actor));
+    JOURNAL.messages.forEach(m=>m.from_agent&&who.add(m.from_agent));
+    JOURNAL.memory.forEach(m=>m.author&&who.add(m.author));
+    const sel=document.getElementById('bk_agent'),cur=sel.value;
+    sel.innerHTML='<option value="">Herkes</option>'+[...who].sort().map(n=>`<option ${cur===n?'selected':''}>${esc(n)}</option>`).join('');
+    renderBellek();
+  }catch(_){}
+}
+function addNote(){
+  const inp=document.getElementById('bk_note'),body=inp.value.trim();if(!body)return;
+  const kind=document.getElementById('bk_kind').value;
+  api("POST","/api/memory",{body,kind,author:"pano"}).then(()=>{inp.value="";loadJournal();})
+    .catch(e=>alert("Hata: "+e.message));
+}
+function renderBellek(){
+  const agent=document.getElementById('bk_agent').value;
+  const type=document.getElementById('bk_type').value;
+  const q=(document.getElementById('bk_search').value||'').toLowerCase();
+  const items=[];
+  JOURNAL.activity.forEach(a=>{const m=actMeta(a);if(!m)return;
+    items.push({ts:a.created_at,type:'activity',who:a.actor,icon:m.icon,text:m.label+(m.target?' · '+m.target:'')});});
+  JOURNAL.messages.forEach(m=>items.push({ts:m.created_at,type:'message',who:m.from_agent,icon:'💬',
+    sub:m.to_agent?('→ '+m.to_agent):'→ herkes',body:m.body}));
+  JOURNAL.memory.forEach(m=>items.push({ts:m.created_at,type:'memory',who:m.author,kind:m.kind,body:m.body,
+    icon:m.kind==='handoff'?'🔁':m.kind==='decision'?'⚖️':'📝'}));
+  let list=items.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+  if(agent) list=list.filter(x=>x.who===agent);
+  if(type)  list=list.filter(x=>x.type===type);
+  if(q)     list=list.filter(x=>((x.text||'')+(x.body||'')+(x.who||'')).toLowerCase().includes(q));
+  document.getElementById('journal').innerHTML=list.slice(0,400).map(x=>{
+    const tt={activity:'olay',message:'mesaj',memory:'bellek'}[x.type];
+    const tag=`<span class="jtag t-${x.type}">${tt}</span>`;
+    const kt=x.kind?` <span class="jtag k-${x.kind}">${x.kind==='handoff'?'devir':x.kind==='decision'?'karar':'not'}</span>`:'';
+    const line=x.text?esc(x.text):(x.sub?`<span class="dmeta">${esc(x.sub)}</span>`:'');
+    const body=x.body?`<div class="jbody">${esc(x.body)}</div>`:'';
+    return `<div class="jrow"><span class="jts">${fmtTs(x.ts)}</span><span class="jico">${x.icon}</span>
+      <span class="jtx"><span class="jwho">${esc(x.who||'?')}</span> ${tag}${kt} ${line}${body}</span></div>`;
+  }).join('')||`<div class="empty">Kayıt yok</div>`;
+}
+
+// ── Analitik sayfası ──
+async function loadAnalytics(){ try{renderAnalytics(await api("GET","/api/analytics"));}catch(_){} }
+function barChart(data,h,color){
+  if(!data.length) return `<div class="empty">Veri yok</div>`;
+  const max=Math.max(1,...data.map(d=>d.v));
+  const bw=Math.max(20,Math.min(60,Math.floor(560/data.length)));
+  const W=data.length*bw, pad=22, bh=h-pad;
+  const bars=data.map((d,i)=>{const H=Math.round(bh*d.v/max),x=i*bw,y=bh-H;
+    return `<rect x="${x+bw*0.18}" y="${y}" width="${bw*0.64}" height="${H}" rx="3" fill="${color}"/>`+
+      (d.v?`<text x="${x+bw/2}" y="${y-3}" text-anchor="middle" font-size="9" fill="#6b7488">${d.v}</text>`:'')+
+      `<text x="${x+bw/2}" y="${h-6}" text-anchor="middle" font-size="9" fill="#6b7488">${esc(String(d.label))}</text>`;
+  }).join('');
+  return `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${h}" style="width:100%;max-width:${W}px;height:${h}px;display:block">${bars}</svg></div>`;
+}
+function renderAnalytics(a){
+  const t=a.totals;
+  document.getElementById('an_cards').innerHTML=[
+    [t.events,'Toplam olay'],[t.contributors,'Katkıda bulunan'],
+    [a.tasks_status.done||0,'Tamamlanan görev'],[t.messages,'Mesaj'],[t.memory,'Bellek notu']
+  ].map(([n,l])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+  const hours=Array.from({length:24},(_,h)=>({label:String(h).padStart(2,'0'),v:(a.by_hour.find(x=>x.hr===h)||{}).n||0}));
+  const agents=a.per_agent.map(x=>({label:x.agent,v:x.n}));
+  const days=a.by_day.map(x=>({label:x.d.slice(5),v:x.n}));
+  const st=Object.entries(a.tasks_status).map(([k,v])=>({label:LANE_TR[k]||k,v}));
+  document.getElementById('an_charts').innerHTML=
+    `<div class="chart wide"><h3>Etkinlik — saate göre (yerel saat)</h3>${barChart(hours,150,'#4f46e5')}</div>`+
+    `<div class="chart"><h3>Ajana göre etkinlik</h3>${barChart(agents,140,'#06b6d4')}</div>`+
+    `<div class="chart"><h3>Görev durumu</h3>${barChart(st,140,'#10b981')}</div>`+
+    `<div class="chart wide"><h3>Son 14 gün</h3>${barChart(days,120,'#8b5cf6')}</div>`;
+}
+
+async function refresh(){
+  if(busy)return;
+  try{
+    const s=await api("GET","/api/state");STATE=s;
+    document.getElementById("liveTxt").textContent="canlı";
+    document.getElementById("projName").textContent=s.project||"proje";
+    renderAgents();renderUsers();renderBoard();renderFeed();
+    if(currentView()==='analitik') loadAnalytics();   // grafikler canlı; bellek elle yenilenir (scroll korunur)
+  }catch(e){ if(e.message!=="401")document.getElementById("liveTxt").textContent="bağlantı yok"; }
+}
+function boot(){ showView(currentView()); refresh(); }
+if(!location.hash) history.replaceState(null,'','#pano');
+if(!TOKEN)promptToken();else boot();
+setInterval(()=>{if(TOKEN)refresh()},2500);
+</script>
+</body>
+</html>

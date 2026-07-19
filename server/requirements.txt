@@ -1,0 +1,9 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+asyncpg>=0.30
+pydantic>=2.11
+fastmcp>=2.8,<3
+# migrations (run out of band via migrate_all.py; sync psycopg driver)
+alembic>=1.13
+sqlalchemy>=2.0
+psycopg[binary]>=3.2

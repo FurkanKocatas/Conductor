@@ -1,0 +1,66 @@
+# Conductor — local development stack. Isolated compose project: own Postgres,
+# own network/volume, bound to localhost only. Mirrors production shape (Cloud
+# Run + Neon) closely, with two local-only concessions noted inline.
+name: conductor
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: conductor-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: conductor
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: conductor
+    ports:
+      - "127.0.0.1:5433:5432"            # localhost only
+    volumes:
+      - conductor_pgdata:/var/lib/postgresql/data
+      # NOTE: db/001_init.sql is NO LONGER auto-applied. Alembic owns the schema
+      # (see the `migrate` service). db/001_init.sql is kept only as a reference.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conductor -d conductor"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot: bring the schema to head, then exit. Runs before the server so no
+  # app instance ever migrates on startup. In prod this is a CI / deploy step.
+  migrate:
+    build: ./server
+    container_name: conductor-migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://conductor:${POSTGRES_PASSWORD}@db:5432/conductor
+    command: ["python", "migrate_all.py"]
+    restart: "no"
+
+  server:
+    build: ./server
+    container_name: conductor-server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://conductor:${POSTGRES_PASSWORD}@db:5432/conductor
+      ENVIRONMENT: development
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}     # dev: any origin. prod: real domains.
+      # Local Postgres image has no pg_cron, so run the reaper in-process. In
+      # production the reaper is a pg_cron job and REAPER_MODE stays 'pgcron'.
+      REAPER_MODE: ${REAPER_MODE:-inproc}
+      DEV_SEED: ${DEV_SEED:-true}                # seed Demo/default + admin locally
+      BOOTSTRAP_ADMIN_TOKEN: ${BOOTSTRAP_ADMIN_TOKEN}
+      APP_NAME: ${APP_NAME:-Conductor}
+      DEFAULT_ORG: ${DEFAULT_ORG:-Demo}
+      DEFAULT_PROJECT: ${DEFAULT_PROJECT:-default}
+      LOG_JSON: ${LOG_JSON:-false}               # readable logs locally
+    ports:
+      - "127.0.0.1:8790:8000"            # localhost → http://localhost:8790
+
+volumes:
+  conductor_pgdata:
