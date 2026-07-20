@@ -8,6 +8,7 @@ Tenancy: the Clerk JWT carries the user's active organization. That maps to
 exactly one Conductor org, and every query here is constrained to it — a user can
 never read or mutate another org's projects or keys.
 
+Auth/org dependencies live in deps.py; billing state and quotas in billing.py.
 All tables touched here (orgs, projects, api_keys) are CONTROL-plane, so they use
 db.control_pool() directly rather than the tenant router.
 """
@@ -16,96 +17,22 @@ from __future__ import annotations
 import json
 import os
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from . import db
-from .auth_clerk import AuthError, principal_from_claims, verify_session_token
+from .billing import enforce_key_quota, enforce_project_quota
 from .config import settings
+from .deps import admin_context, org_context, owned_project
 from .logging_setup import get_logger
-from .svix_verify import WebhookError, verify as verify_svix
+from .svix_verify import WebhookError
+from .svix_verify import verify as verify_svix
 from .util import ser, sha256_hex
 
 log = get_logger("conductor.saas")
 
 router = APIRouter(prefix="/api/dash", tags=["dashboard"])
 webhooks = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
-
-
-# ─────────────────────────────────────────────────────────────
-# Identity: Clerk session JWT → principal → org context
-# ─────────────────────────────────────────────────────────────
-async def clerk_principal(authorization: str = Header(default="")) -> dict:
-    """Verify the Clerk session JWT and return the caller's identity."""
-    if not settings.clerk_enabled:
-        raise HTTPException(501, "Dashboard auth is not configured (Clerk disabled)")
-    if not authorization.lower().startswith("bearer "):
-        raise HTTPException(401, "Bearer token required")
-    try:
-        claims = await verify_session_token(authorization.split(" ", 1)[1].strip())
-    except AuthError as e:
-        raise HTTPException(401, str(e))
-    principal = principal_from_claims(claims)
-    if not principal["user_id"]:
-        raise HTTPException(401, "Token has no subject")
-    return principal
-
-
-async def _resolve_org(clerk_org_id: str, slug: str | None) -> dict:
-    """Map a Clerk organization to its Conductor org, creating it if absent.
-
-    Phase 1 provisions lazily so the dashboard works as soon as Clerk is wired
-    up. Phase 2 moves creation behind the Stripe 'subscription active' webhook
-    and this function becomes lookup-only for unknown orgs.
-    """
-    async with db.control_pool().acquire() as c:
-        row = await c.fetchrow(
-            "SELECT id, name, slug, status, plan, clerk_org_id FROM orgs WHERE clerk_org_id=$1",
-            clerk_org_id)
-        if row:
-            return dict(row)
-        row = await c.fetchrow(
-            """INSERT INTO orgs (name, slug, clerk_org_id)
-               VALUES ($1, $2, $3)
-               ON CONFLICT (slug) DO UPDATE SET clerk_org_id=EXCLUDED.clerk_org_id
-               RETURNING id, name, slug, status, plan, clerk_org_id""",
-            slug or clerk_org_id, clerk_org_id, clerk_org_id)
-        log.info("provisioned org", extra={"ctx": {"clerk_org_id": clerk_org_id}})
-        return dict(row)
-
-
-async def org_context(principal: dict = Depends(clerk_principal)) -> dict:
-    """Principal + resolved org. Rejects users with no active organization and
-    workspaces that aren't active (Phase 2 sets status on billing events)."""
-    if not principal["clerk_org_id"]:
-        raise HTTPException(403, "Select an organization before using the dashboard")
-    org = await _resolve_org(principal["clerk_org_id"], principal.get("org_slug"))
-    if org["status"] != "active":
-        raise HTTPException(402, "Workspace is inactive — an active subscription is required")
-    return {**principal, "org": org}
-
-
-def require_roles(*allowed: str):
-    """Dependency factory enforcing the org role from the Clerk JWT."""
-    async def _dep(ctx: dict = Depends(org_context)) -> dict:
-        if ctx.get("org_role") not in allowed:
-            raise HTTPException(403, f"Requires one of: {', '.join(allowed)}")
-        return ctx
-    return _dep
-
-
-admin_context = require_roles("owner", "admin")
-
-
-async def _owned_project(project_id: str, org_id) -> dict:
-    """Fetch a project, enforcing that it belongs to the caller's org."""
-    async with db.control_pool().acquire() as c:
-        row = await c.fetchrow(
-            "SELECT id, name, slug, org_id FROM projects WHERE id=$1::uuid AND org_id=$2",
-            project_id, org_id)
-    if not row:
-        raise HTTPException(404, "Project not found")
-    return dict(row)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -142,6 +69,7 @@ class ProjectNew(BaseModel):
 
 @router.post("/projects", status_code=201)
 async def create_project(b: ProjectNew, ctx: dict = Depends(admin_context)):
+    await enforce_project_quota(ctx["org"])
     slug = _slugify(b.name)
     async with db.control_pool().acquire() as c:
         row = await c.fetchrow(
@@ -158,7 +86,7 @@ async def create_project(b: ProjectNew, ctx: dict = Depends(admin_context)):
 @router.get("/projects/{project_id}/keys")
 async def list_keys(project_id: str, ctx: dict = Depends(org_context)):
     """Key metadata only — the secret is unrecoverable by design."""
-    project = await _owned_project(project_id, ctx["org"]["id"])
+    project = await owned_project(project_id, ctx["org"]["id"])
     async with db.control_pool().acquire() as c:
         rows = await c.fetch(
             """SELECT id, label, role, created_at, last_used, revoked_at, created_by
@@ -177,7 +105,8 @@ async def mint_key(project_id: str, b: KeyNew, ctx: dict = Depends(admin_context
     """Mint an agent token for a project. Returned in plaintext exactly once."""
     if b.role not in {"agent", "ui"}:
         raise HTTPException(400, "role must be 'agent' or 'ui'")
-    project = await _owned_project(project_id, ctx["org"]["id"])
+    project = await owned_project(project_id, ctx["org"]["id"])
+    await enforce_key_quota(ctx["org"], project["id"])
     raw = os.urandom(32).hex()
     async with db.control_pool().acquire() as c:
         row = await c.fetchrow(
@@ -237,17 +166,21 @@ async def clerk_webhook(request: Request):
     if etype in ("organization.created", "organization.updated") and clerk_org_id:
         name = data.get("name") or data.get("slug") or clerk_org_id
         slug = data.get("slug") or clerk_org_id
+        # New orgs start 'pending' when billing is the on-switch. An existing
+        # org's status is never reset here — only Stripe events change it.
+        initial_status = "pending" if settings.billing_enabled else "active"
         async with db.control_pool().acquire() as c:
             await c.execute(
-                """INSERT INTO orgs (name, slug, clerk_org_id) VALUES ($1,$2,$3)
+                """INSERT INTO orgs (name, slug, clerk_org_id, status)
+                   VALUES ($1,$2,$3,$4)
                    ON CONFLICT (slug) DO UPDATE
                      SET name=EXCLUDED.name, clerk_org_id=EXCLUDED.clerk_org_id""",
-                name, slug, clerk_org_id)
+                name, slug, clerk_org_id, initial_status)
         log.info("org synced", extra={"ctx": {"type": etype, "clerk_org_id": clerk_org_id}})
 
     elif etype == "organization.deleted" and clerk_org_id:
         # Soft-delete: hard DELETE would cascade away every task/message. Data is
-        # retained; access is refused by org_context's status check.
+        # retained; access is refused by the org status check in deps.py.
         async with db.control_pool().acquire() as c:
             await c.execute(
                 "UPDATE orgs SET status='deleted' WHERE clerk_org_id=$1", clerk_org_id)

@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_request
 
-from . import db, saas
+from . import billing, db, saas
 from .config import settings
 from .logging_setup import get_logger, setup_logging
 from .util import ser, sha256_hex as _hash
@@ -1032,10 +1032,12 @@ mcp_app = mcp.http_app(path="/")
 # 307 preserves method+body → MCP POST/GET/DELETE isn't broken). Defined BEFORE the mount → catches the exact "/mcp".
 from starlette.responses import RedirectResponse  # noqa: E402
 
-# Dashboard (Clerk-authed human API) + Clerk webhooks. Registered before the
-# static catch-all mount so "/" never swallows them.
+# Dashboard (Clerk-authed human API), billing, and provider webhooks. Registered
+# before the static catch-all mount so "/" never swallows them.
 app.include_router(saas.router)
 app.include_router(saas.webhooks)
+app.include_router(billing.router)
+app.include_router(billing.webhooks)
 
 
 @app.api_route("/mcp", methods=["GET", "POST", "DELETE", "OPTIONS"])

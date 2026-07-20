@@ -39,6 +39,20 @@ class Settings:
     clerk_webhook_secret: str = ""       # Svix signing secret for Clerk webhooks
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
+    stripe_price_id: str = ""            # the single paid plan's Price
+    billing_plan_name: str = "pro"       # label stored on orgs.plan
+
+    # Public origin used to build Stripe return URLs (checkout success/cancel,
+    # billing portal return). e.g. https://app.example.com
+    public_base_url: str = "http://localhost:8790"
+
+    @property
+    def billing_enabled(self) -> bool:
+        """Billing is the on-switch for a workspace. When Stripe is NOT
+        configured (self-hosted / dev), orgs are usable immediately; when it IS,
+        a new org stays 'pending' until a subscription goes active."""
+        return bool(self.stripe_secret_key and self.stripe_webhook_secret
+                    and self.stripe_price_id)
 
     @property
     def clerk_enabled(self) -> bool:
@@ -106,6 +120,9 @@ def get_settings() -> Settings:
         clerk_webhook_secret=os.environ.get("CLERK_WEBHOOK_SECRET", ""),
         stripe_secret_key=os.environ.get("STRIPE_SECRET_KEY", ""),
         stripe_webhook_secret=os.environ.get("STRIPE_WEBHOOK_SECRET", ""),
+        stripe_price_id=os.environ.get("STRIPE_PRICE_ID", ""),
+        billing_plan_name=os.environ.get("BILLING_PLAN_NAME", "pro"),
+        public_base_url=os.environ.get("PUBLIC_BASE_URL", "http://localhost:8790").rstrip("/"),
         allowed_origins=_csv("ALLOWED_ORIGINS", "*"),
         db_pool_min=int(os.environ.get("DB_POOL_MIN", "1")),
         db_pool_max=int(os.environ.get("DB_POOL_MAX", "5")),
