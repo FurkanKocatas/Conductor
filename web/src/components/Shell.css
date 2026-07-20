@@ -3,66 +3,94 @@
 .topbar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 0 16px;
-  height: 52px;
+  gap: 18px;
+  padding: 0 18px;
+  height: 60px;
   flex: none;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-weight: 660;
-  letter-spacing: -.015em;
-  font-size: 15px;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  font-size: 19px;
   color: var(--text);
 }
-/* Three rising bars — a conductor's downbeat. Cheap, and it isn't a generic dot. */
-.brand__mark { display: flex; align-items: flex-end; gap: 2px; height: 15px; }
+
+/* Four bars beating at different tempos — the conductor's downbeat, and a
+   living signal that agents are running. Not a generic logo dot. */
+.brand__mark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2.5px;
+  height: 20px;
+  padding: 3px 5px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+}
 .brand__mark i {
   width: 3px;
-  background: var(--accent);
-  border-radius: 1px;
+  border-radius: 2px;
   display: block;
+  transform-origin: bottom;
+  animation: beat 1.5s var(--ease) infinite;
 }
-.brand__mark i:nth-child(1) { height: 7px; }
-.brand__mark i:nth-child(2) { height: 14px; }
-.brand__mark i:nth-child(3) { height: 10px; }
+.brand__mark i:nth-child(1) { height: 6px;  background: var(--ink-tangerine); animation-delay: 0s; }
+.brand__mark i:nth-child(2) { height: 13px; background: var(--ink-pink);      animation-delay: .18s; }
+.brand__mark i:nth-child(3) { height: 9px;  background: var(--ink-violet);    animation-delay: .36s; }
+.brand__mark i:nth-child(4) { height: 11px; background: var(--ink-blue);      animation-delay: .54s; }
+@keyframes beat {
+  0%, 100% { transform: scaleY(.55); }
+  50%      { transform: scaleY(1.25); }
+}
 
 .project {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--text-muted);
-  padding: 3px 9px;
+  padding: 5px 11px;
   border-radius: 999px;
   background: var(--surface-2);
-  max-width: 220px;
+  max-width: 240px;
 }
 
-.nav { display: flex; gap: 2px; margin-left: 6px; }
+.nav { display: flex; gap: 3px; margin-left: 4px; }
 .nav a {
-  padding: 6px 11px;
-  border-radius: var(--r-sm);
+  padding: 7px 13px;
+  border-radius: 999px;
   font-size: 13px;
-  font-weight: 520;
+  font-weight: 600;
   color: var(--text-muted);
-  transition: background .14s var(--ease), color .14s var(--ease);
+  transition: background .16s var(--ease), color .16s var(--ease);
 }
 .nav a:hover { background: var(--surface-2); color: var(--text); }
-.nav a.active { background: var(--surface-3); color: var(--text); }
+.nav a.active {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: var(--shadow-pop);
+}
 
-.topbar__end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.topbar__end { margin-left: auto; display: flex; align-items: center; gap: 9px; }
 
 .live {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--text-muted);
   font-family: var(--mono);
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--surface-2);
 }
+.live .dot--live { background: var(--good); }
 
 .shell__body { flex: 1; min-height: 0; overflow: hidden; }

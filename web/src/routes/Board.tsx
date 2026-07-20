@@ -3,10 +3,10 @@ import {
   ApiError, getLocalToken, getState, patchTask, setLocalToken,
   type Agent, type BoardState, type Status, type Task,
 } from "../lib/api";
-import { LANES, agentLive, ago, laneLabel } from "../lib/lanes";
+import { LANES, agentInk, agentLive, ago, initials, laneLabel } from "../lib/lanes";
 import { demoState } from "../lib/demoData";
 import { Shell } from "../components/Shell";
-import { Button, Chip, Empty, StatusDot } from "../components/ui";
+import { Button, Chip, Empty } from "../components/ui";
 import "./Board.css";
 
 const POLL_MS = 2500;
@@ -104,23 +104,28 @@ export default function Board({ demo = false }: { demo?: boolean }) {
             {LANES.map((lane) => {
               const items = byLane.get(lane.key) ?? [];
               return (
-                <div className="lane" key={lane.key}>
+                <div
+                  className={`lane${overLane === lane.key ? " is-over" : ""}`}
+                  key={lane.key}
+                  style={{
+                    ["--lane-fg" as string]: lane.fg,
+                    ["--lane-bg" as string]: lane.bg,
+                  }}
+                  onDragOver={(e) => { e.preventDefault(); setOverLane(lane.key); }}
+                  onDragLeave={() => setOverLane((l) => (l === lane.key ? null : l))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setOverLane(null);
+                    if (dragId) void moveTask(dragId, lane.key);
+                    setDragId(null);
+                  }}
+                >
                   <div className="lane__head">
-                    <span className="lane__stripe" style={{ background: lane.fg }} />
+                    <span className="lane__stripe" />
                     <span className="lane__title">{lane.label}</span>
                     <span className="lane__n tabular">{items.length}</span>
                   </div>
-                  <div
-                    className={`lane__body${overLane === lane.key ? " is-over" : ""}`}
-                    onDragOver={(e) => { e.preventDefault(); setOverLane(lane.key); }}
-                    onDragLeave={() => setOverLane((l) => (l === lane.key ? null : l))}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setOverLane(null);
-                      if (dragId) void moveTask(dragId, lane.key);
-                      setDragId(null);
-                    }}
-                  >
+                  <div className="lane__body">
                     {items.map((t) => (
                       <TaskCard
                         key={t.id}
@@ -130,11 +135,7 @@ export default function Board({ demo = false }: { demo?: boolean }) {
                         onDragEnd={() => { setDragId(null); setOverLane(null); }}
                       />
                     ))}
-                    {!items.length && (
-                      <div style={{ padding: "10px 4px", fontSize: 12, color: "var(--text-faint)" }}>
-                        {lane.hint}
-                      </div>
-                    )}
+                    {!items.length && <div className="lane__hint">{lane.hint}</div>}
                   </div>
                 </div>
               );
@@ -189,7 +190,7 @@ function TaskCard({
       <div className="task__meta">
         {task.priority !== 0 && <span className="task__pri">P{task.priority}</span>}
         {task.assignee
-          ? <Chip mono>{task.assignee}</Chip>
+          ? <Avatar name={task.assignee} size="sm" />
           : <Chip mono title="Any agent can claim this">auto</Chip>}
         {promptChip && (
           <Chip fg={promptChip.fg} bg={promptChip.bg}>{promptChip.text}</Chip>
@@ -206,8 +207,10 @@ function AgentRow({ agent }: { agent: Agent }) {
   const live = agentLive(agent.last_heartbeat);
   const status = live ? agent.status : "offline";
   return (
-    <div className="agent">
-      <StatusDot status={status} live={live} />
+    <div className={`agent${live ? "" : " is-off"}`}>
+      <span className={status === "working" ? "pulse" : undefined}>
+        <Avatar name={agent.name} />
+      </span>
       <div className="grow">
         <div className="agent__name truncate">{agent.name}</div>
         <div className="agent__note truncate">
@@ -266,5 +269,21 @@ function TokenGate({ onSaved }: { onSaved: () => void }) {
         </form>
       </div>
     </div>
+  );
+}
+
+
+/** Colour-coded initials. Each agent keeps the same ink everywhere, so people
+ *  are recognisable at a glance without reading a name. */
+function Avatar({ name, size }: { name: string; size?: "sm" }) {
+  const ink = agentInk(name);
+  return (
+    <span
+      className={`avatar${size ? " avatar--sm" : ""}`}
+      style={{ color: ink.fg, background: ink.bg }}
+      title={name}
+    >
+      {initials(name)}
+    </span>
   );
 }

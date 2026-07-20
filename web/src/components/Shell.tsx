@@ -37,7 +37,7 @@ export function Shell({
     <div className="shell">
       <header className="topbar">
         <span className="brand">
-          <span className="brand__mark" aria-hidden="true"><i /><i /><i /></span>
+          <span className="brand__mark" aria-hidden="true"><i /><i /><i /><i /></span>
           Conductor
         </span>
 
