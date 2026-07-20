@@ -3,6 +3,9 @@ uvicorn[standard]>=0.30
 asyncpg>=0.30
 pydantic>=2.11
 fastmcp>=2.8,<3
+# identity (Clerk session JWT verification via JWKS)
+pyjwt[crypto]>=2.9
+httpx>=0.27
 # migrations (run out of band via migrate_all.py; sync psycopg driver)
 alembic>=1.13
 sqlalchemy>=2.0

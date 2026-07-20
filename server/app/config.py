@@ -36,8 +36,16 @@ class Settings:
     # ── Identity / billing (wired in Phase 1 / 2; optional in Phase 0) ──
     clerk_jwks_url: str = ""
     clerk_issuer: str = ""
+    clerk_webhook_secret: str = ""       # Svix signing secret for Clerk webhooks
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
+
+    @property
+    def clerk_enabled(self) -> bool:
+        """Dashboard (human) auth is active only when Clerk is configured. When
+        off, the Clerk-authed routes return 501 so the agent/REST surface still
+        works standalone."""
+        return bool(self.clerk_jwks_url and self.clerk_issuer)
 
     # ── HTTP / security ───────────────────────────────────────────
     # Explicit allow-list. "*" is only tolerated in dev and must never be set
@@ -95,6 +103,7 @@ def get_settings() -> Settings:
         database_url=os.environ.get("DATABASE_URL", ""),
         clerk_jwks_url=os.environ.get("CLERK_JWKS_URL", ""),
         clerk_issuer=os.environ.get("CLERK_ISSUER", ""),
+        clerk_webhook_secret=os.environ.get("CLERK_WEBHOOK_SECRET", ""),
         stripe_secret_key=os.environ.get("STRIPE_SECRET_KEY", ""),
         stripe_webhook_secret=os.environ.get("STRIPE_WEBHOOK_SECRET", ""),
         allowed_origins=_csv("ALLOWED_ORIGINS", "*"),

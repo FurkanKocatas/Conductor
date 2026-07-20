@@ -6,7 +6,6 @@ In Phase 1.b the same core functions will also be wrapped as MCP tools.
 """
 import asyncio
 import hashlib
-import json
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -18,9 +17,10 @@ from pydantic import BaseModel
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_request
 
-from . import db
+from . import db, saas
 from .config import settings
 from .logging_setup import get_logger, setup_logging
+from .util import ser, sha256_hex as _hash
 
 # NB: renamed from `log` to avoid colliding with the async activity-log helper
 # `log(c, pid, ...)` defined below, which rebinds the module global `log`.
@@ -33,20 +33,12 @@ applog = get_logger("conductor.api")
 pool: asyncpg.Pool | None = None
 
 
-def _hash(tok: str) -> str:
-    return hashlib.sha256(tok.encode()).hexdigest()
-
-
-def ser(row) -> dict:
-    """asyncpg Record → JSON-compatible dict (UUID/datetime → str)."""
-    return json.loads(json.dumps(dict(row), default=str))
-
-
 async def _resolve_token(tok: str) -> dict | None:
     """bearer token → {project_id, role, label} (None if absent). Shared by REST + MCP."""
     async with pool.acquire() as c:
         row = await c.fetchrow(
-            "SELECT project_id, role, label FROM api_keys WHERE key_hash=$1", _hash(tok))
+            "SELECT project_id, role, label FROM api_keys "
+            "WHERE key_hash=$1 AND revoked_at IS NULL", _hash(tok))
         if row:
             await c.execute("UPDATE api_keys SET last_used=now() WHERE key_hash=$1", _hash(tok))
     return dict(row) if row else None
@@ -1039,6 +1031,11 @@ mcp_app = mcp.http_app(path="/")
 # /mcp (without slash) → /mcp/ 307 redirect (so a client can connect even if it gives the URL without a slash;
 # 307 preserves method+body → MCP POST/GET/DELETE isn't broken). Defined BEFORE the mount → catches the exact "/mcp".
 from starlette.responses import RedirectResponse  # noqa: E402
+
+# Dashboard (Clerk-authed human API) + Clerk webhooks. Registered before the
+# static catch-all mount so "/" never swallows them.
+app.include_router(saas.router)
+app.include_router(saas.webhooks)
 
 
 @app.api_route("/mcp", methods=["GET", "POST", "DELETE", "OPTIONS"])
