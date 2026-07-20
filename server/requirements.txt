@@ -3,6 +3,8 @@ uvicorn[standard]>=0.30
 asyncpg>=0.30
 pydantic>=2.11
 fastmcp>=2.8,<3
+# error tracking (inactive unless SENTRY_DSN is set)
+sentry-sdk>=2.0
 # identity (Clerk session JWT verification via JWKS)
 pyjwt[crypto]>=2.9
 httpx>=0.27

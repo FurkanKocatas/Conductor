@@ -20,6 +20,8 @@ from fastmcp.server.dependencies import get_http_request
 from . import billing, db, saas
 from .config import settings
 from .logging_setup import get_logger, setup_logging
+from .observability import init_error_tracking
+from .security import SecurityHeadersMiddleware
 from .util import ser, sha256_hex as _hash
 
 # NB: renamed from `log` to avoid colliding with the async activity-log helper
@@ -94,6 +96,7 @@ async def lifespan(app: FastAPI):
     global pool
     setup_logging()
     settings.validate()
+    init_error_tracking()             # no-op unless SENTRY_DSN is set
     await db.init_pools()
     pool = db.control_pool()          # alias for existing handlers
     if settings.dev_seed:
@@ -116,6 +119,8 @@ app.add_middleware(
     allow_origins=settings.allowed_origins,       # explicit allow-list, not "*" in prod
     allow_methods=["*"], allow_headers=["*"],
 )
+# Outermost so the headers land on every response, including CORS preflights.
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 # ─────────────────────────────────────────────────────────────

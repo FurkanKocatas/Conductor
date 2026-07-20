@@ -87,6 +87,10 @@ class Settings:
     default_org: str = "Demo"
     default_project: str = "default"
 
+    # ── Observability (optional) ──────────────────────────────────
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.05
+
     app_name: str = "Conductor"
     log_level: str = "INFO"
     log_json: bool = True
@@ -132,6 +136,8 @@ def get_settings() -> Settings:
         bootstrap_admin_token=os.environ.get("BOOTSTRAP_ADMIN_TOKEN", ""),
         default_org=os.environ.get("DEFAULT_ORG", "Demo"),
         default_project=os.environ.get("DEFAULT_PROJECT", "default"),
+        sentry_dsn=os.environ.get("SENTRY_DSN", ""),
+        sentry_traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.05")),
         app_name=os.environ.get("APP_NAME", "Conductor"),
         log_level=os.environ.get("LOG_LEVEL", "INFO").upper(),
         log_json=_bool("LOG_JSON", True),

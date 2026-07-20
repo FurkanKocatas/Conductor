@@ -1,0 +1,108 @@
+# Deploy to Cloud Run.
+#
+# Manual trigger for now (workflow_dispatch). Once GCP is wired up and you've had
+# a few clean runs, add:
+#     push:
+#       branches: [main]
+# to deploy on every merge to main.
+#
+# Required repository SECRETS:
+#   GCP_PROJECT_ID          e.g. conductor-prod
+#   GCP_REGION              e.g. europe-west1
+#   GCP_WIF_PROVIDER        projects/<n>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
+#   GCP_SERVICE_ACCOUNT     deployer@<project>.iam.gserviceaccount.com
+#   DATABASE_URL            Neon connection string (used only to run migrations)
+#
+# Auth uses Workload Identity Federation — no long-lived service-account JSON key
+# is ever stored in GitHub.
+#
+# Runtime secrets (Clerk/Stripe/DB) are NOT set here: they live in Google Secret
+# Manager and are attached to the Cloud Run service with --set-secrets, so they
+# never pass through CI logs.
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm'
+        required: true
+        default: ''
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false      # never interrupt an in-flight deploy
+
+env:
+  SERVICE: conductor
+
+jobs:
+  deploy:
+    if: inputs.confirm == 'deploy'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write            # required for Workload Identity Federation
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Artifact Registry auth
+        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push image
+        working-directory: server
+        run: |
+          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${SERVICE}/${SERVICE}:${GITHUB_SHA}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      # Migrations run BEFORE the new revision goes live, and never from inside
+      # an app instance (multiple Cloud Run instances would race).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply database migrations
+        working-directory: server
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          pip install -r requirements.txt
+          python migrate_all.py
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE" \
+            --region "${{ secrets.GCP_REGION }}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 10 \
+            --cpu 1 --memory 512Mi \
+            --concurrency 80 \
+            --timeout 60 \
+            --set-env-vars "ENVIRONMENT=production,LOG_JSON=true,REAPER_MODE=pgcron,DEV_SEED=false" \
+            --set-secrets "DATABASE_URL=conductor-database-url:latest,CLERK_JWKS_URL=conductor-clerk-jwks-url:latest,CLERK_ISSUER=conductor-clerk-issuer:latest,CLERK_WEBHOOK_SECRET=conductor-clerk-webhook-secret:latest,STRIPE_SECRET_KEY=conductor-stripe-secret-key:latest,STRIPE_WEBHOOK_SECRET=conductor-stripe-webhook-secret:latest,STRIPE_PRICE_ID=conductor-stripe-price-id:latest,ALLOWED_ORIGINS=conductor-allowed-origins:latest,PUBLIC_BASE_URL=conductor-public-base-url:latest" \
+            --quiet
+
+      - name: Smoke test the new revision
+        run: |
+          URL=$(gcloud run services describe "$SERVICE" \
+            --region "${{ secrets.GCP_REGION }}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --format 'value(status.url)')
+          echo "Deployed: $URL"
+          curl -fsS --retry 5 --retry-delay 3 "$URL/health" && echo "  health OK"
+          curl -fsS --retry 5 --retry-delay 3 "$URL/ready"  && echo "  ready OK"

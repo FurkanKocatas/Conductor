@@ -1,0 +1,65 @@
+"""Response security headers.
+
+Applied to every response. Values are conservative but deliberately compatible
+with the current single-file board UI, which inlines its own <style> and
+<script>. That forces 'unsafe-inline' in the CSP today — the honest trade-off is
+recorded here rather than hidden, and it goes away when the UI is rebuilt with
+external assets or nonces.
+"""
+from __future__ import annotations
+
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from .config import settings
+
+# Inline styles/scripts are required by ui/index.html as it stands.
+# connect-src 'self' covers the board's polling of /api/*.
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data:; "
+    "connect-src 'self'; "
+    "font-src 'self' data:; "
+    "object-src 'none'; "
+    "base-uri 'none'; "
+    "frame-ancestors 'none'; "
+    "form-action 'self'"
+)
+
+_BASE_HEADERS = {
+    b"x-content-type-options": b"nosniff",
+    b"x-frame-options": b"DENY",
+    b"referrer-policy": b"strict-origin-when-cross-origin",
+    b"permissions-policy": b"geolocation=(), microphone=(), camera=()",
+    b"content-security-policy": _CSP.encode(),
+}
+
+
+class SecurityHeadersMiddleware:
+    """Pure-ASGI middleware — avoids BaseHTTPMiddleware, which buffers responses
+    and would interfere with the MCP streamable-HTTP endpoint."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+        self.headers = dict(_BASE_HEADERS)
+        if settings.is_production:
+            # Only meaningful over HTTPS; Cloud Run terminates TLS for us.
+            self.headers[b"strict-transport-security"] = \
+                b"max-age=31536000; includeSubDomains"
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def _send(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                existing = {k.lower() for k, _ in message.get("headers", [])}
+                message.setdefault("headers", [])
+                for key, value in self.headers.items():
+                    if key not in existing:      # never clobber a handler's own header
+                        message["headers"].append((key, value))
+            await send(message)
+
+        await self.app(scope, receive, _send)
