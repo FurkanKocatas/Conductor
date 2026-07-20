@@ -27,7 +27,9 @@ services:
   # One-shot: bring the schema to head, then exit. Runs before the server so no
   # app instance ever migrates on startup. In prod this is a CI / deploy step.
   migrate:
-    build: ./server
+    build:
+      context: .
+      dockerfile: server/Dockerfile
     container_name: conductor-migrate
     depends_on:
       db:
@@ -38,7 +40,9 @@ services:
     restart: "no"
 
   server:
-    build: ./server
+    build:
+      context: .
+      dockerfile: server/Dockerfile
     container_name: conductor-server
     restart: unless-stopped
     depends_on:

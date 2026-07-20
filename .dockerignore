@@ -1,0 +1,12 @@
+# Keep the build context small and never ship local state into the image.
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+.git
+.github
+backups/
+server/static
+web/dist
+.env
+*.md

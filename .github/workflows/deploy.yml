@@ -59,11 +59,12 @@ jobs:
       - name: Configure Artifact Registry auth
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
+      # Context is the repo root: the image builds the SPA from web/ and the
+      # API from server/ (see server/Dockerfile).
       - name: Build and push image
-        working-directory: server
         run: |
           IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${SERVICE}/${SERVICE}:${GITHUB_SHA}"
-          docker build -t "$IMAGE" .
+          docker build -f server/Dockerfile -t "$IMAGE" .
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 

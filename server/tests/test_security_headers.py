@@ -27,6 +27,14 @@ def test_csp_locks_down_dangerous_directives():
     assert "default-src 'self'" in csp
 
 
+def test_csp_forbids_inline_scripts():
+    """Regression guard: the SPA ships external bundles and theme-init.js is a
+    separate file, so nothing should reintroduce 'unsafe-inline' for scripts."""
+    csp = client.get("/health").headers["content-security-policy"]
+    assert "script-src 'self';" in csp
+    assert "script-src 'self' 'unsafe-inline'" not in csp
+
+
 def test_headers_present_on_error_response():
     """A 401/501 must be just as protected as a 200."""
     r = client.get("/api/dash/me", headers={"Authorization": "Bearer x"})

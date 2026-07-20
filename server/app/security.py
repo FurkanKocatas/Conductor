@@ -12,11 +12,15 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .config import settings
 
-# Inline styles/scripts are required by ui/index.html as it stands.
+# script-src is 'self' only: the built SPA ships external bundles and the
+# theme-init script was moved out of index.html precisely so inline scripts can
+# be forbidden outright.
+# style-src still needs 'unsafe-inline' because React sets inline style
+# attributes (style={{...}}), which style-src-attr covers via 'unsafe-inline'.
 # connect-src 'self' covers the board's polling of /api/*.
 _CSP = (
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline'; "
+    "script-src 'self'; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data:; "
     "connect-src 'self'; "

@@ -1053,7 +1053,32 @@ async def _mcp_slash_redirect():
 app.mount("/mcp", mcp_app)
 
 from fastapi.staticfiles import StaticFiles  # noqa: E402
+from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
-_UI = os.path.join(os.path.dirname(__file__), "..", "ui")
-if os.path.isdir(_UI):
-    app.mount("/", StaticFiles(directory=_UI, html=True), name="ui")
+
+class SPAStaticFiles(StaticFiles):
+    """Serve the built SPA, falling back to index.html for client-side routes.
+
+    Without this, a deep link like /board would 404 — the file doesn't exist on
+    disk, the router owns that path. API routes are registered before this mount,
+    so they always win.
+    """
+
+    async def get_response(self, path, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code == 404:
+                return await super().get_response("index.html", scope)
+            raise
+
+
+_here = os.path.dirname(__file__)
+_SPA = os.path.join(_here, "..", "static")     # built frontend (web/ → vite build)
+_LEGACY_UI = os.path.join(_here, "..", "ui")   # original single-file board
+
+if os.path.isdir(_SPA) and os.path.isfile(os.path.join(_SPA, "index.html")):
+    app.mount("/", SPAStaticFiles(directory=_SPA, html=True), name="spa")
+elif os.path.isdir(_LEGACY_UI):
+    # Fallback so a checkout without a frontend build still serves a board.
+    app.mount("/", StaticFiles(directory=_LEGACY_UI, html=True), name="ui")

@@ -50,3 +50,9 @@ desktop.ini
 *.bak*
 *.log
 docker-compose.override.yml
+
+# Build artifacts (the Docker image builds the SPA; nothing to commit)
+node_modules/
+server/static/
+web/dist/
+*.tsbuildinfo
