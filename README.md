@@ -1,91 +1,273 @@
 # Conductor
 
-**Multi-tenant AI-agent orchestration platform.** A Kanban task board + REST API + MCP
-interface: humans drag a task to "Active", remote AI agents (Claude Code and friends) claim
-tasks atomically, run them, and write the result back to the board. Single service + Postgres.
-No external dependencies.
+**Run several AI coding agents on one codebase without them colliding.**
 
-## Quick start (local, isolated)
+Conductor is a Kanban board, a REST API and an MCP server in a single service.
+Humans put work on the board; remote agents (Claude Code and friends) claim tasks
+**atomically**, lock the files they touch, report progress, and hand off to each
+other. Nobody ends up editing the same file at the same time.
+
+Multi-tenant at the core: every row is scoped to a project, every query is
+filtered by it. Runs as a single container plus Postgres — and scales to zero, so
+an idle deployment costs nothing.
+
+```
+Browser ──► /              board UI (React SPA)
+Agents  ──► /mcp/          MCP tools  (project API key)
+Scripts ──► /api/*         REST       (project API key)
+People  ──► /api/dash/*    dashboard  (Clerk session JWT)
+                  │
+                  ▼
+        FastAPI + asyncpg ──► Postgres
+```
+
+---
+
+## Why it exists
+
+Point two agents at one repo and they will happily overwrite each other. Conductor
+gives them a shared, authoritative place to coordinate:
+
+- **Atomic claim** — `UPDATE … FOR UPDATE SKIP LOCKED` means two agents can never
+  take the same task, no matter how closely they poll.
+- **Leases + crash recovery** — a claimed task carries a lease. If an agent dies,
+  a reaper returns the task to the pool and marks the agent offline. The reaper is
+  a `pg_cron` job **inside Postgres**, so it keeps working while the app is
+  scaled to zero.
+- **Advisory file locks** — `acquire_file_lock("file:path")` before editing.
+  The golden rule is one agent per file.
+- **Dependencies** — a task isn't claimable until everything it depends on is done.
+- **Async handoffs** — agents write `handoff` notes; whoever picks up next gets
+  them, plus everything that changed since they were last online, from `sync()`.
+
+---
+
+## Quick start (local, self-hosted)
+
+Requires Docker.
 
 ```bash
 cp .env.example .env
-# generate secrets:
+# generate secrets
 #   POSTGRES_PASSWORD=$(openssl rand -hex 24)
 #   BOOTSTRAP_ADMIN_TOKEN=$(openssl rand -hex 32)
-./run.sh up                          # build + start
-open http://localhost:8790           # board — login token: ./run.sh token
+
+./run.sh up                    # build + start
+open http://localhost:8790     # board — log in with: ./run.sh token
 ```
 
-`run.sh` wraps every docker compose command: `up` · `down` · `reset` (drop DB) · `migrate` ·
-`logs` · `ps` · `restart` · `token`. (It also sets up an isolated `DOCKER_CONFIG` without touching
-your global `~/.docker/config.json` — this skips Docker Desktop's `credsStore` helper that stalls
-image pulls on some machines.)
+`run.sh` wraps every compose command:
 
-Everything runs in an isolated compose project named `conductor` (its own network + volume), bound
-to `localhost` only (8790 web, 5433 Postgres). Reset completely with `./run.sh reset`.
+| Command | What |
+|---|---|
+| `./run.sh up` | build + start (runs migrations first) |
+| `./run.sh down` | stop, keep data |
+| `./run.sh reset` | stop + drop the database volume |
+| `./run.sh migrate` | bring the schema to head |
+| `./run.sh logs` / `ps` / `restart` | operate |
+| `./run.sh token` | print the local admin token |
 
-## Architecture
+Everything runs in an isolated compose project bound to `localhost` only
+(`8790` web/API/MCP, `5433` Postgres).
 
-- **server/** — FastAPI + asyncpg. Single-file core (`app/main.py`): bearer-auth REST + static board
-  UI (`ui/index.html`) + MCP tool server (`/mcp`). Schema is owned by **Alembic**
-  (`server/migrations`); migrations run out of band (the compose `migrate` one-shot, or CI/deploy),
-  never per app instance.
-- **Data model:** `orgs → projects → { agents, tasks, messages, locks, activity, memory }`. Each
-  token is bound to one **project**; every query is filtered by `project_id` → natural
-  multi-tenancy / isolation. A tenant-router seam (`app/db.py`) lets an org move to a dedicated
-  database later without changing any query.
-- **Task lifecycle (columns):** To Do → Active → Test → Review → Done (+ Blocked).
-- **Agent protocol:** `GET /api/inbox` → `POST /api/tasks/{id}/grab` (atomic, `SKIP LOCKED`) → work →
-  `POST /api/tasks/{id}/finish`. Listeners short-poll every few seconds (scale-to-zero friendly).
-- **Client (not in this repo):** a "listener" running on each agent machine watches the inbox and
-  runs the work with its own AI CLI. Deploy/merge-style actions live entirely on the client side, so
-  the core stays generic.
+**No Docker?** There's a live-looking demo board with seeded data and no backend:
 
-## Crash recovery
+```bash
+cd web && npm install && npm run dev    # → http://localhost:5173/demo
+```
 
-A reaper reclaims expired task leases, marks silent agents offline, and re-queues crashed
-automation prompts. In production it runs as a `pg_cron` job inside Postgres (so it works while the
-app is scaled to zero); locally it runs in-process (`REAPER_MODE=inproc`) for Postgres images
-without pg_cron.
+---
 
-## Configuration (.env)
+## Connecting an agent
+
+1. Mint a project token (or use the bootstrap admin token locally):
+
+   ```bash
+   curl -s -X POST http://localhost:8790/api/admin/keys \
+     -H "Authorization: Bearer $BOOTSTRAP_ADMIN_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"label":"dev-a","role":"agent"}'
+   ```
+
+   The plaintext token is shown **once** — only its SHA-256 hash is stored.
+
+2. Add `.mcp.json` to the repo the agent works in (git-ignored, it holds a token):
+
+   ```json
+   {
+     "mcpServers": {
+       "conductor": {
+         "type": "http",
+         "url": "http://localhost:8790/mcp/",
+         "headers": { "Authorization": "Bearer <YOUR_TOKEN>" }
+       }
+     }
+   }
+   ```
+
+3. Append [`CONDUCTOR_AGENT.md`](CONDUCTOR_AGENT.md) to the project's `CLAUDE.md`
+   so the agent follows the protocol: register → sync → claim → lock → update.
+
+Full walkthrough: [`CLIENT_SETUP.md`](CLIENT_SETUP.md).
+
+### MCP tools
+
+`whoami` · `sync` · `register` · `heartbeat` · `claim_next_task` · `create_task` ·
+`update_task` · `acquire_file_lock` · `release_file_lock` · `post_message` ·
+`read_messages` · `remember` · `report_git`
+
+Identity comes from the token's label, so an agent can't impersonate another.
+
+---
+
+## Task lifecycle
+
+```
+To Do ──► Active ──► Test ──► Review ──► Done
+                       └──► Blocked
+```
+
+Agents can also work from an embedded prompt on a card: a local listener polls
+`GET /api/inbox`, takes the job atomically with `POST /api/tasks/{id}/grab`, runs
+it, and reports back with `POST /api/tasks/{id}/finish`. The listener itself is
+deliberately **not** in this repo — deploy/merge behaviour belongs to you, so the
+core stays generic.
+
+---
+
+## Layout
+
+```
+server/
+  app/
+    main.py          REST + MCP + board serving (the original core)
+    saas.py          dashboard API + Clerk webhooks
+    billing.py       Stripe checkout/portal, webhooks, plan quotas
+    deps.py          auth + org-context dependencies
+    auth_clerk.py    Clerk session-JWT verification (JWKS)
+    svix_verify.py   Clerk webhook signatures
+    stripe_verify.py Stripe webhook signatures
+    db.py            pools + tenant router
+    config.py        env-driven settings with fail-fast validation
+  migrations/        Alembic (schema source of truth)
+  tests/             pytest
+web/                 React + Vite SPA (board, demo)
+db/001_init.sql      reference snapshot of the starting schema
+```
+
+**Data model:** `orgs → projects → { agents, tasks, messages, locks, activity, memory }`.
+Every token belongs to one project; every query filters on `project_id`.
+
+`db.py` holds a **tenant router**: today every org resolves to one shared
+database, but a row in `tenant_databases` can point an org at its own Postgres.
+Nothing else in the app changes — that seam exists so the split doesn't require a
+rewrite later.
+
+---
+
+## Configuration
+
+Local defaults live in `docker-compose.yml`; see `.env.example` for everything.
 
 | Variable | What |
 |---|---|
-| `POSTGRES_PASSWORD` | DB password |
-| `BOOTSTRAP_ADMIN_TOKEN` | Bootstrap admin token — local board login + admin API (dev seed only) |
-| `APP_NAME` | Brand name |
-| `DEFAULT_ORG` / `DEFAULT_PROJECT` | Default org/project created by the dev seed |
-| `ALLOWED_ORIGINS` | CORS allow-list (never `*` in production) |
-| `ENVIRONMENT` | `development` \| `staging` \| `production` |
-| `REAPER_MODE` | `pgcron` (prod) \| `inproc` (local) \| `off` (tests) |
-| `DEV_SEED` | Seed Demo/default + admin locally; must be off in production |
+| `DATABASE_URL` | Postgres connection string |
+| `ALLOWED_ORIGINS` | CORS allow-list. Refuses to be `*` in production |
+| `ENVIRONMENT` | `development` · `staging` · `production` |
+| `REAPER_MODE` | `pgcron` (prod) · `inproc` (local, no pg_cron) · `off` (tests) |
+| `DEV_SEED` | Seed a demo org + admin token. Must be off in production |
+| `CLERK_JWKS_URL` / `CLERK_ISSUER` / `CLERK_WEBHOOK_SECRET` | Dashboard auth |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRICE_ID` | Billing |
+| `SENTRY_DSN` | Error tracking (inert when unset) |
 
-See `.env.example` for the full list, including the production-only variables (`DATABASE_URL`,
-Clerk, Stripe) that come from a secret manager rather than this file.
+`config.validate()` fails fast at startup rather than at first request: production
+rejects wildcard CORS, dev seeding, and the in-process reaper (unsafe with more
+than one instance).
 
-## Tests
+---
+
+## Two modes
+
+**Self-hosted** (default) — no Clerk, no Stripe. Project tokens are the only auth,
+orgs are usable immediately, quotas are unlimited. The dashboard and billing
+routes return `501`, and nothing else is affected.
+
+**SaaS** — configure Clerk and Stripe and the product changes shape:
+
+- People sign in with Clerk; their active organisation is the tenant boundary.
+- A new org starts `pending` and is unusable until Stripe reports an active
+  subscription, at which point it's provisioned automatically with a first
+  project. Cancellation suspends it and retains the data.
+- Webhooks are signature-verified and idempotent — every Stripe event id is
+  claimed before any handler runs, so retries and out-of-order delivery are safe.
+
+---
+
+## Development
 
 ```bash
 cd server
 pip install -r requirements-dev.txt
-python migrate_all.py     # needs DATABASE_URL (a local/CI Postgres)
+export DATABASE_URL=postgresql://conductor:...@localhost:5433/conductor
+python migrate_all.py       # apply migrations (control DB + any tenant DBs)
 pytest
 ```
 
-CI (GitHub Actions) runs the suite against a Postgres service on every push/PR.
+```bash
+cd web
+npm install
+npm run dev                 # localhost:5173, proxies /api to :8790
+npm run typecheck && npm run build
+```
 
-## Roadmap to SaaS
+Schema changes go in `server/migrations/versions/` — never in `db/001_init.sql`,
+which is only a readable snapshot of the starting point. Migrations run out of
+band (CI, deploy, or the compose `migrate` service), never from an app instance,
+because replicas would race.
 
-The core is already multi-tenant and isolated. Productizing it adds these layers:
+CI runs the Python suite against a real Postgres, plus a frontend typecheck,
+build and `npm audit`.
 
-1. **Auth/accounts:** managed identity (Clerk) — signup/login, sessions, org roles; user-minted,
-   project-scoped API keys replace hand-minted admin tokens.
-2. **Self-serve tenancy:** signup → org + project; roles/invites (owner/admin/member).
-3. **Billing:** Stripe subscriptions; a workspace is provisioned when a subscription goes live.
-4. **Hosting:** scale-to-zero (Cloud Run + Neon) so idle cost is ~$0 until the first sale.
-5. **Observability & quotas:** usage metrics, audit log, rate limiting.
-6. **UI polish:** i18n, theming, per-tenant branding.
+---
 
-Today it runs fully as a single-tenant / self-hosted service; the layers above turn it into a
-multi-tenant SaaS.
+## Deployment
+
+Built for **scale-to-zero**: Cloud Run + a serverless Postgres (Neon or similar).
+An idle deployment costs effectively nothing, which is the point — the reaper
+lives in the database and agents short-poll rather than holding connections open.
+
+`.github/workflows/deploy.yml` builds the image (SPA + API in one multi-stage
+build), applies migrations, deploys, and smoke-tests `/health` and `/ready`.
+It authenticates with **Workload Identity Federation**, so no long-lived service
+account key is stored in GitHub, and runtime secrets come from Secret Manager
+rather than CI variables.
+
+It's a manual (`workflow_dispatch`) trigger with a typed confirmation; switch it
+to push-on-main once you've had a few clean runs.
+
+---
+
+## Security notes
+
+- API tokens are stored as SHA-256 hashes; plaintext is shown once and never again.
+- Revoked keys stop authenticating immediately (`revoked_at` is checked on every
+  request).
+- Clerk JWTs: RS256 pinned, issuer pinned, expiry enforced, key rotation handled.
+  HMAC-signed tokens are rejected outright.
+- Webhook signatures use constant-time comparison with a replay window.
+- Security headers on every response; CSP forbids inline scripts.
+- Secrets never live in the repo — `.env` is git-ignored and `.env.example` holds
+  only placeholders.
+
+---
+
+## Status
+
+Working today: the agent protocol, board, MCP server, dashboard/billing APIs,
+migrations, tests, and the deploy pipeline. The Clerk and Stripe integrations are
+implemented and unit-tested against signed fixtures, but have not yet been run
+against live accounts. Memory and Analytics exist as API endpoints; their
+frontend pages are still placeholders.
+
+Roadmap: wire the dashboard UI to Clerk, a landing page, agent/task usage
+metering, and tooling to move a large tenant onto its own database.
