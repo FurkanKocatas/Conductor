@@ -89,13 +89,13 @@ export default function Board({ demo = false }: { demo?: boolean }) {
       <div className="board-layout">
         <section className="col col--side">
           <div className="col__head">
-            <h2>Agents</h2>
+            <h2>Performers</h2>
             <span className="col__count tabular">{state?.agents.length ?? 0}</span>
           </div>
           <div className="scroll">
             {state?.agents.length
               ? state.agents.map((a) => <AgentRow key={a.id} agent={a} />)
-              : <Empty>No agents registered</Empty>}
+              : <Empty>No performers</Empty>}
           </div>
         </section>
 
@@ -107,10 +107,7 @@ export default function Board({ demo = false }: { demo?: boolean }) {
                 <div
                   className={`lane${overLane === lane.key ? " is-over" : ""}`}
                   key={lane.key}
-                  style={{
-                    ["--lane-fg" as string]: lane.fg,
-                    ["--lane-bg" as string]: lane.bg,
-                  }}
+                  style={{ ["--lane-plate" as string]: lane.plate }}
                   onDragOver={(e) => { e.preventDefault(); setOverLane(lane.key); }}
                   onDragLeave={() => setOverLane((l) => (l === lane.key ? null : l))}
                   onDrop={(e) => {
@@ -121,7 +118,6 @@ export default function Board({ demo = false }: { demo?: boolean }) {
                   }}
                 >
                   <div className="lane__head">
-                    <span className="lane__stripe" />
                     <span className="lane__title">{lane.label}</span>
                     <span className="lane__n tabular">{items.length}</span>
                   </div>
@@ -144,7 +140,7 @@ export default function Board({ demo = false }: { demo?: boolean }) {
         </section>
 
         <section className="col col--feed">
-          <div className="col__head"><h2>Feed</h2></div>
+          <div className="col__head"><h2>Log</h2></div>
           <div className="scroll">
             {state?.activity.length
               ? state.activity.slice(0, 50).map((a) => (
@@ -156,7 +152,7 @@ export default function Board({ demo = false }: { demo?: boolean }) {
                     </span>
                   </div>
                 ))
-              : <Empty>Nothing yet</Empty>}
+              : <Empty>No entries</Empty>}
           </div>
         </section>
       </div>
@@ -171,9 +167,9 @@ function TaskCard({
   onDragStart: () => void; onDragEnd: () => void;
 }) {
   const promptChip = {
-    pending: { text: "queued", fg: "var(--st-active)", bg: "var(--st-active-bg)" },
-    running: { text: "running", fg: "var(--st-test)", bg: "var(--st-test-bg)" },
-    done: { text: "done", fg: "var(--st-done)", bg: "var(--st-done-bg)" },
+    pending: { text: "queued", color: "var(--mustard)" },
+    running: { text: "running", color: "var(--red)" },
+    done: { text: "filed", color: "var(--green)" },
     idle: null,
   }[task.prompt_state];
 
@@ -190,10 +186,12 @@ function TaskCard({
       <div className="task__meta">
         {task.priority !== 0 && <span className="task__pri">P{task.priority}</span>}
         {task.assignee
-          ? <Avatar name={task.assignee} size="sm" />
+          ? <Mark name={task.assignee} />
           : <Chip mono title="Any agent can claim this">auto</Chip>}
         {promptChip && (
-          <Chip fg={promptChip.fg} bg={promptChip.bg}>{promptChip.text}</Chip>
+          <span className="stamp task__stamp" style={{ color: promptChip.color }}>
+            {promptChip.text}
+          </span>
         )}
         {unmetDeps > 0 && (
           <Chip mono title={`${unmetDeps} dependency task(s)`}>⛔ {unmetDeps}</Chip>
@@ -208,15 +206,16 @@ function AgentRow({ agent }: { agent: Agent }) {
   const status = live ? agent.status : "offline";
   return (
     <div className={`agent${live ? "" : " is-off"}`}>
-      <span className={status === "working" ? "pulse" : undefined}>
-        <Avatar name={agent.name} />
+      <span className="agent__mark" aria-hidden="true"
+            style={{ color: agentInk(agent.name) }}>
+        {status === "working" ? "▸" : status === "blocked" ? "✖" : "•"}
       </span>
       <div className="grow">
         <div className="agent__name truncate">{agent.name}</div>
         <div className="agent__note truncate">
           {status === "offline" ? "offline" : agent.note || status}
         </div>
-        {agent.branch && <Chip mono>⎇ {agent.branch}</Chip>}
+        {agent.branch && <div className="agent__branch">⎇ {agent.branch}</div>}
       </div>
       <span className="agent__hb">{ago(agent.last_heartbeat)}</span>
     </div>
@@ -244,7 +243,8 @@ function TokenGate({ onSaved }: { onSaved: () => void }) {
   return (
     <div className="gate">
       <div className="card gate__card">
-        <h2>Connect to Conductor</h2>
+        <div className="kick">Access</div>
+        <h2>Present your token</h2>
         <p>Paste a project API token to open the board. Run <code>./run.sh token</code> for the local admin token.</p>
         <form
           onSubmit={(e) => {
@@ -275,14 +275,9 @@ function TokenGate({ onSaved }: { onSaved: () => void }) {
 
 /** Colour-coded initials. Each agent keeps the same ink everywhere, so people
  *  are recognisable at a glance without reading a name. */
-function Avatar({ name, size }: { name: string; size?: "sm" }) {
-  const ink = agentInk(name);
+function Mark({ name }: { name: string }) {
   return (
-    <span
-      className={`avatar${size ? " avatar--sm" : ""}`}
-      style={{ color: ink.fg, background: ink.bg }}
-      title={name}
-    >
+    <span className="chip" style={{ color: agentInk(name), borderColor: "currentColor" }} title={name}>
       {initials(name)}
     </span>
   );

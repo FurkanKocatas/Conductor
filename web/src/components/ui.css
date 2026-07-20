@@ -1,92 +1,102 @@
-/* Primitives. Everything reads from tokens, so both themes come for free. */
+/* Primitives — letterpress. Hard rules, square corners, solid offset lift. */
 
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 8px 15px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  padding: 7px 14px;
+  border-radius: var(--r);
+  border: var(--border) solid var(--rule);
+  background: var(--surface-2);
   color: var(--text);
-  font-size: 13px;
-  font-weight: 650;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: background .14s var(--ease), border-color .14s var(--ease),
-              transform .14s var(--ease);
+  transition: transform .12s var(--ease), box-shadow .12s var(--ease),
+              background .12s var(--ease);
 }
-.btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--border-strong); }
-.btn:active:not(:disabled) { transform: translateY(1px); }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: var(--lift-sm); }
+.btn:active:not(:disabled) { transform: translate(0, 0); box-shadow: none; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
 
-.btn--primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
-  box-shadow: var(--shadow-pop);
-}
-.btn--primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn--primary { background: var(--red); border-color: var(--red); color: var(--paper); }
+.btn--primary:hover:not(:disabled) { box-shadow: 3px 3px 0 var(--ink); }
 
-.btn--ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
-.btn--ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.btn--ghost { border-color: transparent; background: transparent; }
+.btn--ghost:hover:not(:disabled) { border-color: var(--rule); }
 
-.btn--danger { color: var(--danger); border-color: var(--border); }
-.btn--danger:hover:not(:disabled) { background: var(--danger-bg); border-color: var(--danger); }
+.btn--danger { color: var(--red); border-color: var(--red); }
 
-.btn--sm { padding: 4px 9px; font-size: 12px; }
-.btn--icon { padding: 7px; }
+.btn--sm { padding: 3px 8px; font-size: 10px; }
+.btn--icon { padding: 6px 8px; }
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: var(--border) solid var(--rule);
   border-radius: var(--r);
-  box-shadow: var(--shadow);
 }
 
+/* Chip = a printed tag. Square, ruled, mono. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  background: var(--surface-2);
+  padding: 2px 7px;
+  border: 1.2px solid var(--rule-soft);
+  border-radius: var(--r);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .06em;
   color: var(--text-muted);
-  border: 1px solid transparent;
+  background: transparent;
   white-space: nowrap;
 }
-.chip--mono { font-family: var(--mono); font-size: 11px; }
+.chip--mono { font-family: var(--font-mono); }
 
-.dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--text-faint);
-  flex: none;
+/* Stamp = rotated rubber stamp, for status that should feel applied by hand. */
+.stamp {
+  display: inline-block;
+  border: 1.5px solid currentColor;
+  border-radius: var(--r);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  transform: rotate(-4deg);
+  white-space: nowrap;
 }
-.dot--live { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 22%, transparent); }
-.dot--working { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
-.dot--blocked { background: var(--danger); }
+
+.dot { width: 7px; height: 7px; background: var(--ink-30); flex: none; border-radius: 50%; }
+.dot--live { background: var(--green); }
+.dot--working { background: var(--mustard); }
+.dot--blocked { background: var(--red); }
 
 .field {
   width: 100%;
-  padding: 8px 11px;
-  border-radius: var(--r-sm);
-  border: 1.5px solid var(--border);
-  background: var(--surface);
+  padding: 9px 11px;
+  border-radius: var(--r);
+  border: var(--border) solid var(--rule);
+  background: var(--paper-2);
   color: var(--text);
-  font-size: 13.5px;
-  transition: border-color .14s var(--ease);
+  font-family: var(--font-mono);
+  font-size: 13px;
 }
 .field::placeholder { color: var(--text-faint); }
-.field:focus { border-color: var(--accent); }
+.field:focus { outline: none; box-shadow: var(--lift-sm); }
 textarea.field { resize: vertical; min-height: 84px; line-height: 1.5; }
 
 .empty {
-  padding: 22px 14px;
+  padding: 20px 12px;
   text-align: center;
   color: var(--text-faint);
-  font-size: 13px;
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
 }
 
 .stack { display: flex; flex-direction: column; }
@@ -94,11 +104,17 @@ textarea.field { resize: vertical; min-height: 84px; line-height: 1.5; }
 .grow { flex: 1; min-width: 0; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Barcode — a printed-object tell, used in the folio strip. */
+.barcode { display: inline-flex; gap: 2px; align-items: flex-end; height: 16px; }
+.barcode i { width: 2px; height: 100%; background: var(--rule); display: block; }
+.barcode i:nth-child(2n) { width: 1px; height: 72%; }
+.barcode i:nth-child(3n) { width: 3px; }
+.barcode i:nth-child(5n) { height: 86%; }
+
 .spinner {
-  width: 14px; height: 14px;
-  border: 2px solid var(--border-strong);
-  border-top-color: var(--accent);
-  border-radius: 50%;
+  width: 12px; height: 12px;
+  border: 2px solid var(--rule-soft);
+  border-top-color: var(--red);
   animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }

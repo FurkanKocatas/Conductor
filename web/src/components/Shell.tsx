@@ -1,23 +1,21 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useTheme } from "../lib/theme";
-import { Button } from "./ui";
 import "./Shell.css";
 
-function ThemeToggle() {
+function EditionToggle() {
   const { choice, cycle, isDark } = useTheme();
-  const icon = choice === "system" ? "◐" : isDark ? "☾" : "☀";
-  const next = choice === "system" ? "light" : choice === "light" ? "dark" : "system";
+  const next = choice === "system" ? "day" : choice === "light" ? "night" : "auto";
+  const label = choice === "system" ? "Auto" : isDark ? "Night" : "Day";
   return (
-    <Button
-      variant="ghost"
-      size="icon"
+    <button
+      className="btn btn--sm"
       onClick={cycle}
-      title={`Theme: ${choice} — switch to ${next}`}
-      aria-label={`Theme: ${choice}. Switch to ${next}.`}
+      title={`Edition: ${label} — switch to ${next}`}
+      aria-label={`Edition: ${label}. Switch to ${next}.`}
     >
-      <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>{icon}</span>
-    </Button>
+      {label} ed.
+    </button>
   );
 }
 
@@ -34,32 +32,41 @@ export function Shell({
     : conn === "offline" ? "dot dot--blocked" : "dot";
 
   return (
-    <div className="shell">
-      <header className="topbar">
-        <span className="brand">
-          <span className="brand__mark" aria-hidden="true"><i /><i /><i /><i /></span>
-          Conductor
-        </span>
+    <div className="shell grain">
+      <div className="sheet">
+        <span className="crop tl" /><span className="crop tr" />
+        <span className="crop bl" /><span className="crop br" />
 
-        {project && <span className="project truncate" title={project}>{project}</span>}
+        <header className="masthead">
+          <span className="brand">Conductor<span className="dot">.</span></span>
+          {project && <span className="edition truncate" title={project}>{project}</span>}
 
-        <nav className="nav">
-          <NavLink to="/board">Board</NavLink>
-          <NavLink to="/memory">Memory</NavLink>
-          <NavLink to="/analytics">Analytics</NavLink>
-        </nav>
+          <nav className="nav">
+            <NavLink to="/board">Board</NavLink>
+            <NavLink to="/memory">Memory</NavLink>
+            <NavLink to="/analytics">Analytics</NavLink>
+          </nav>
 
-        <div className="topbar__end">
-          <span className="live" title={`Connection: ${conn}`}>
-            <span className={dotClass} aria-hidden="true" />
-            {conn}
+          <span className="masthead__end">
+            <span className="live" title={`Connection: ${conn}`}>
+              <span className={dotClass} aria-hidden="true" />
+              {conn}
+            </span>
+            {actions}
+            <EditionToggle />
           </span>
-          {actions}
-          <ThemeToggle />
-        </div>
-      </header>
+        </header>
 
-      <main className="shell__body">{children}</main>
+        <main className="shell__body">{children}</main>
+
+        <footer className="folio">
+          <span className="no">Agent orchestration</span>
+          <span className="grow">Two agents never touch the same file</span>
+          <span className="barcode" aria-hidden="true">
+            {Array.from({ length: 14 }, (_, i) => <i key={i} />)}
+          </span>
+        </footer>
+      </div>
     </div>
   );
 }

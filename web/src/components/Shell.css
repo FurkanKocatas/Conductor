@@ -1,96 +1,86 @@
-.shell { display: flex; flex-direction: column; height: 100%; }
-
-.topbar {
+/* The whole app is one printed sheet sitting on a desk. */
+.shell {
+  height: 100%;
+  padding: 14px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+}
+
+.sheet {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: var(--paper);
+  border: var(--border) solid var(--rule);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 14px 18px 12px;
+}
+
+/* ── Masthead ────────────────────────────────────────────── */
+.masthead {
+  display: flex;
+  align-items: baseline;
   gap: 18px;
-  padding: 0 18px;
-  height: 60px;
-  flex: none;
-  background: color-mix(in srgb, var(--surface) 72%, transparent);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2.5px solid var(--rule);
+  padding-bottom: 9px;
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
 }
 
 .brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: -.035em;
-  font-size: 19px;
-  color: var(--text);
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 23px;
+  letter-spacing: -.02em;
+  text-transform: none;
+  line-height: 1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
 }
+.brand .dot { color: var(--red); }
 
-/* Four bars beating at different tempos — the conductor's downbeat, and a
-   living signal that agents are running. Not a generic logo dot. */
-.brand__mark {
-  display: flex;
-  align-items: flex-end;
-  gap: 2.5px;
-  height: 20px;
-  padding: 3px 5px;
-  border-radius: 8px;
-  background: var(--accent-soft);
-}
-.brand__mark i {
-  width: 3px;
-  border-radius: 2px;
-  display: block;
-  transform-origin: bottom;
-  animation: beat 1.5s var(--ease) infinite;
-}
-.brand__mark i:nth-child(1) { height: 6px;  background: var(--ink-tangerine); animation-delay: 0s; }
-.brand__mark i:nth-child(2) { height: 13px; background: var(--ink-pink);      animation-delay: .18s; }
-.brand__mark i:nth-child(3) { height: 9px;  background: var(--ink-violet);    animation-delay: .36s; }
-.brand__mark i:nth-child(4) { height: 11px; background: var(--ink-blue);      animation-delay: .54s; }
-@keyframes beat {
-  0%, 100% { transform: scaleY(.55); }
-  50%      { transform: scaleY(1.25); }
-}
+.masthead .edition { color: var(--ink-50); }
 
-.project {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-muted);
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  max-width: 240px;
-}
-
-.nav { display: flex; gap: 3px; margin-left: 4px; }
+.nav { display: flex; gap: 18px; margin-left: auto; }
 .nav a {
-  padding: 7px 13px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  transition: background .16s var(--ease), color .16s var(--ease);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  border-bottom: 2px solid transparent;
+  padding-bottom: 2px;
 }
-.nav a:hover { background: var(--surface-2); color: var(--text); }
-.nav a.active {
-  background: var(--accent);
-  color: var(--accent-contrast);
-  box-shadow: var(--shadow-pop);
-}
+.nav a:hover { color: var(--red); }
+.nav a.active { border-bottom-color: var(--green); }
 
-.topbar__end { margin-left: auto; display: flex; align-items: center; gap: 9px; }
+.masthead__end { display: flex; align-items: center; gap: 14px; }
 
 .live {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-muted);
-  font-family: var(--mono);
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: var(--surface-2);
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-50);
 }
-.live .dot--live { background: var(--good); }
 
-.shell__body { flex: 1; min-height: 0; overflow: hidden; }
+/* ── Body ────────────────────────────────────────────────── */
+.shell__body { min-height: 0; padding: 12px 0; }
+
+/* ── Folio strip ─────────────────────────────────────────── */
+.folio {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-top: 2.5px solid var(--rule);
+  padding-top: 9px;
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-50);
+}
+.folio .grow { text-align: center; }
+.folio .no { color: var(--text); }

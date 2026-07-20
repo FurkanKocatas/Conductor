@@ -1,210 +1,191 @@
-/* Conductor design tokens — "Ensemble".
+/* Conductor design tokens — "Programme".
  *
- * Direction: flat vivid inks, editorial/risograph energy. Every lane and every
- * agent carries its own colour, so the board reads as an ensemble of voices
- * rather than a grey ledger.
+ * Letterpress/editorial print language: warm paper, ink, flat pastel plates,
+ * hard rules, no blur. A Kanban of parallel agents IS a concert programme —
+ * masthead, folio, columns, plates — so the print metaphor is literal, not decor.
  *
- * Deliberate anti-defaults:
- *   - primary is TANGERINE, not the dev-tool blue/purple/green
- *   - dark mode is deep indigo-plum, never near-black with an acid accent
- *   - lane surfaces are tinted with their own ink, not neutral grey troughs
+ * Rules this system enforces:
+ *   - borders are hard ink rules (1.5px), corners are essentially square
+ *   - elevation is a SOLID offset shadow, never a soft blur
+ *   - colour arrives as flat pastel plates, never as gradients-as-decoration
+ *   - micro-labels are mono, uppercase, widely tracked
  *
- * One token set, two themes. Resolution order:
- *   1. :root                      → light
- *   2. prefers-color-scheme: dark → follow the OS
- *   3. [data-theme="light|dark"]  → explicit choice, wins over the OS
+ * One token set, two editions. Resolution order:
+ *   1. :root                      → day edition
+ *   2. prefers-color-scheme: dark → night edition (follows the OS)
+ *   3. [data-theme]               → explicit choice, wins over the OS
  */
 
 :root {
-  /* Ground + surfaces */
-  --bg: #f5f4fb;
-  --bg-glow: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #efeef8;
-  --surface-3: #e5e3f3;
-  --border: #e4e1f1;
-  --border-strong: #cfcae6;
+  /* Stock */
+  --paper: #f4efe3;
+  --paper-2: #fbf9f4;
+  --ink: #1d1b16;
+  --ink-70: #4a463d;
+  --ink-50: #6d675a;
+  --ink-30: #8a8577;
 
-  /* Text — deep indigo rather than black, so nothing reads as a terminal */
-  --text: #17142c;
-  --text-muted: #5b5779;
-  --text-faint: #918da9;
+  --bg: #e7e1d3;          /* the desk the sheet sits on */
+  --surface: var(--paper);
+  --surface-2: var(--paper-2);
+  --rule: #1d1b16;        /* hard ink rule */
+  --rule-soft: rgb(29 27 22 / .28);
 
-  /* Primary: tangerine */
-  --accent: #f4541d;
-  --accent-hover: #d8410d;
-  --accent-soft: #ffe9e0;
-  --accent-contrast: #ffffff;
+  --text: var(--ink);
+  --text-muted: var(--ink-70);
+  --text-faint: var(--ink-30);
 
-  /* Ink palette — the ensemble */
-  --ink-peri: #7b6cf6;
-  --ink-blue: #2f6bff;
-  --ink-teal: #00a98f;
-  --ink-violet: #a855f7;
-  --ink-pink: #f8286f;
-  --ink-amber: #f59e0b;
-  --ink-tangerine: #f4541d;
+  /* Inks */
+  --red: #c94f38;
+  --green: #3e9433;
+  --mustard: #d9a441;
+  --blue: #34506b;
+  --accent: var(--red);
+  --accent-contrast: var(--paper);
 
-  /* Soft tints of each ink (lane bodies, chips) */
-  --ink-peri-soft: #eeecfe;
-  --ink-blue-soft: #e6eeff;
-  --ink-teal-soft: #ddf5f0;
-  --ink-violet-soft: #f5e9fe;
-  --ink-pink-soft: #ffe4ee;
-  --ink-amber-soft: #fdf0d8;
-  --ink-tangerine-soft: #ffe9e0;
+  /* Plates — flat pastel tones, one per lane */
+  --plate-paper: #fbf9f4;
+  --plate-sage: #e0e1f1;
+  --plate-teal: #dae7ec;
+  --plate-green: #cfe0cb;
+  --plate-blue: #d8e2ec;
+  --plate-mustard: #ece0c4;
+  --plate-red: #ecd8d2;
 
-  /* Feedback */
-  --good: #00a98f;
-  --warn: #f59e0b;
-  --danger: #f8286f;
-  --danger-bg: #ffe4ee;
+  --good: var(--green);
+  --warn: var(--mustard);
+  --danger: var(--red);
 
-  /* Elevation — soft and colour-tinted, never a hard grey drop shadow */
-  --shadow-sm: 0 1px 2px rgba(35, 24, 74, .05);
-  --shadow: 0 2px 4px rgba(35, 24, 74, .05), 0 10px 26px rgba(35, 24, 74, .07);
-  --shadow-lg: 0 20px 60px rgba(35, 24, 74, .18);
-  --shadow-pop: 0 6px 20px rgba(244, 84, 29, .28);
+  /* Elevation: solid offset, zero blur. The signature move. */
+  --lift: 4px 4px 0 var(--ink);
+  --lift-sm: 3px 3px 0 var(--ink);
 
-  /* Shape + motion — generous radii read modern, not institutional */
-  --r-sm: 9px;
-  --r: 14px;
-  --r-lg: 20px;
+  --r: 2px;               /* essentially square */
+  --border: 1.5px;
   --ease: cubic-bezier(.2, .8, .25, 1);
 
-  /* Type */
-  --font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
-  --font: "Plus Jakarta Sans Variable", system-ui, -apple-system, sans-serif;
-  --mono: "JetBrains Mono Variable", ui-monospace, Menlo, monospace;
+  --font-serif: "Fraunces Variable", Georgia, serif;
+  --font-mono: "Courier Prime", "Courier New", monospace;
+
+  --grain-opacity: .06;
+  --grain-blend: multiply;
 
   color-scheme: light;
 }
 
+/* Night edition — the same press, run on dark stock. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #100d1e;
-    --bg-glow: #1a1533;
-    --surface: #1a1630;
-    --surface-2: #221d3d;
-    --surface-3: #2b2549;
-    --border: #2e2850;
-    --border-strong: #423a68;
+    --paper: #211e17;
+    --paper-2: #2a261d;
+    --ink: #f0e9da;
+    --ink-70: #c3bba7;
+    --ink-50: #9a927f;
+    --ink-30: #77705f;
 
-    --text: #f1eeff;
-    --text-muted: #a49ec6;
-    --text-faint: #746e98;
+    --bg: #14120d;
+    --surface: var(--paper);
+    --surface-2: var(--paper-2);
+    --rule: #f0e9da;
+    --rule-soft: rgb(240 233 218 / .26);
 
-    --accent: #ff6a35;
-    --accent-hover: #ff835a;
-    --accent-soft: #3a1c12;
-    --accent-contrast: #1a0d07;
+    --text: var(--ink);
+    --text-muted: var(--ink-70);
+    --text-faint: var(--ink-30);
 
-    --ink-peri: #a99bff;
-    --ink-blue: #5c87ff;
-    --ink-teal: #2ad4b8;
-    --ink-violet: #c084fc;
-    --ink-pink: #ff5c8a;
-    --ink-amber: #fbbf24;
-    --ink-tangerine: #ff6a35;
+    --red: #e2705a;
+    --green: #6fbf5f;
+    --mustard: #e6bb63;
+    --blue: #7fa3c4;
+    --accent: var(--red);
+    --accent-contrast: #14120d;
 
-    --ink-peri-soft: #241f45;
-    --ink-blue-soft: #17224a;
-    --ink-teal-soft: #0f2f2c;
-    --ink-violet-soft: #2a1b45;
-    --ink-pink-soft: #3a1526;
-    --ink-amber-soft: #33260d;
-    --ink-tangerine-soft: #3a1c12;
+    --plate-paper: #2b2720;
+    --plate-sage: #2b2b3d;
+    --plate-teal: #22333a;
+    --plate-green: #26351f;
+    --plate-blue: #223143;
+    --plate-mustard: #3a3018;
+    --plate-red: #3d2620;
 
-    --good: #2ad4b8;
-    --warn: #fbbf24;
-    --danger: #ff5c8a;
-    --danger-bg: #3a1526;
+    --lift: 4px 4px 0 var(--ink);
+    --lift-sm: 3px 3px 0 var(--ink);
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .5);
-    --shadow: 0 2px 4px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .45);
-    --shadow-lg: 0 24px 70px rgba(0, 0, 0, .6);
-    --shadow-pop: 0 6px 22px rgba(255, 106, 53, .35);
+    --grain-opacity: .09;
+    --grain-blend: overlay;
 
     color-scheme: dark;
   }
 }
 
 :root[data-theme="light"] {
-  --bg: #f5f4fb;
-  --bg-glow: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #efeef8;
-  --surface-3: #e5e3f3;
-  --border: #e4e1f1;
-  --border-strong: #cfcae6;
-  --text: #17142c;
-  --text-muted: #5b5779;
-  --text-faint: #918da9;
-  --accent: #f4541d;
-  --accent-hover: #d8410d;
-  --accent-soft: #ffe9e0;
-  --accent-contrast: #ffffff;
-  --ink-peri: #7b6cf6;
-  --ink-blue: #2f6bff;
-  --ink-teal: #00a98f;
-  --ink-violet: #a855f7;
-  --ink-pink: #f8286f;
-  --ink-amber: #f59e0b;
-  --ink-tangerine: #f4541d;
-  --ink-peri-soft: #eeecfe;
-  --ink-blue-soft: #e6eeff;
-  --ink-teal-soft: #ddf5f0;
-  --ink-violet-soft: #f5e9fe;
-  --ink-pink-soft: #ffe4ee;
-  --ink-amber-soft: #fdf0d8;
-  --ink-tangerine-soft: #ffe9e0;
-  --good: #00a98f;
-  --warn: #f59e0b;
-  --danger: #f8286f;
-  --danger-bg: #ffe4ee;
-  --shadow-sm: 0 1px 2px rgba(35, 24, 74, .05);
-  --shadow: 0 2px 4px rgba(35, 24, 74, .05), 0 10px 26px rgba(35, 24, 74, .07);
-  --shadow-lg: 0 20px 60px rgba(35, 24, 74, .18);
-  --shadow-pop: 0 6px 20px rgba(244, 84, 29, .28);
+  --paper: #f4efe3;
+  --paper-2: #fbf9f4;
+  --ink: #1d1b16;
+  --ink-70: #4a463d;
+  --ink-50: #6d675a;
+  --ink-30: #8a8577;
+  --bg: #e7e1d3;
+  --surface: var(--paper);
+  --surface-2: var(--paper-2);
+  --rule: #1d1b16;
+  --rule-soft: rgb(29 27 22 / .28);
+  --text: var(--ink);
+  --text-muted: var(--ink-70);
+  --text-faint: var(--ink-30);
+  --red: #c94f38;
+  --green: #3e9433;
+  --mustard: #d9a441;
+  --blue: #34506b;
+  --accent: var(--red);
+  --accent-contrast: var(--paper);
+  --plate-paper: #fbf9f4;
+  --plate-sage: #e0e1f1;
+  --plate-teal: #dae7ec;
+  --plate-green: #cfe0cb;
+  --plate-blue: #d8e2ec;
+  --plate-mustard: #ece0c4;
+  --plate-red: #ecd8d2;
+  --good: var(--green);
+  --warn: var(--mustard);
+  --danger: var(--red);
+  --grain-opacity: .06;
+  --grain-blend: multiply;
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --bg: #100d1e;
-  --bg-glow: #1a1533;
-  --surface: #1a1630;
-  --surface-2: #221d3d;
-  --surface-3: #2b2549;
-  --border: #2e2850;
-  --border-strong: #423a68;
-  --text: #f1eeff;
-  --text-muted: #a49ec6;
-  --text-faint: #746e98;
-  --accent: #ff6a35;
-  --accent-hover: #ff835a;
-  --accent-soft: #3a1c12;
-  --accent-contrast: #1a0d07;
-  --ink-peri: #a99bff;
-  --ink-blue: #5c87ff;
-  --ink-teal: #2ad4b8;
-  --ink-violet: #c084fc;
-  --ink-pink: #ff5c8a;
-  --ink-amber: #fbbf24;
-  --ink-tangerine: #ff6a35;
-  --ink-peri-soft: #241f45;
-  --ink-blue-soft: #17224a;
-  --ink-teal-soft: #0f2f2c;
-  --ink-violet-soft: #2a1b45;
-  --ink-pink-soft: #3a1526;
-  --ink-amber-soft: #33260d;
-  --ink-tangerine-soft: #3a1c12;
-  --good: #2ad4b8;
-  --warn: #fbbf24;
-  --danger: #ff5c8a;
-  --danger-bg: #3a1526;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .5);
-  --shadow: 0 2px 4px rgba(0, 0, 0, .45), 0 12px 32px rgba(0, 0, 0, .45);
-  --shadow-lg: 0 24px 70px rgba(0, 0, 0, .6);
-  --shadow-pop: 0 6px 22px rgba(255, 106, 53, .35);
+  --paper: #211e17;
+  --paper-2: #2a261d;
+  --ink: #f0e9da;
+  --ink-70: #c3bba7;
+  --ink-50: #9a927f;
+  --ink-30: #77705f;
+  --bg: #14120d;
+  --surface: var(--paper);
+  --surface-2: var(--paper-2);
+  --rule: #f0e9da;
+  --rule-soft: rgb(240 233 218 / .26);
+  --text: var(--ink);
+  --text-muted: var(--ink-70);
+  --text-faint: var(--ink-30);
+  --red: #e2705a;
+  --green: #6fbf5f;
+  --mustard: #e6bb63;
+  --blue: #7fa3c4;
+  --accent: var(--red);
+  --accent-contrast: #14120d;
+  --plate-paper: #2b2720;
+  --plate-sage: #2b2b3d;
+  --plate-teal: #22333a;
+  --plate-green: #26351f;
+  --plate-blue: #223143;
+  --plate-mustard: #3a3018;
+  --plate-red: #3d2620;
+  --good: var(--green);
+  --warn: var(--mustard);
+  --danger: var(--red);
+  --grain-opacity: .09;
+  --grain-blend: overlay;
   color-scheme: dark;
 }
