@@ -69,15 +69,16 @@ class ProjectNew(BaseModel):
 
 @router.post("/projects", status_code=201)
 async def create_project(b: ProjectNew, ctx: dict = Depends(admin_context)):
-    await enforce_project_quota(ctx["org"])
     slug = _slugify(b.name)
     async with db.control_pool().acquire() as c:
-        row = await c.fetchrow(
-            """INSERT INTO projects (org_id, name, slug, created_by)
-               VALUES ($1,$2,$3,$4)
-               ON CONFLICT (org_id, slug) DO NOTHING
-               RETURNING id, name, slug, created_at, created_by""",
-            ctx["org"]["id"], b.name, slug, ctx["user_id"])
+        async with c.transaction():
+            await enforce_project_quota(c, ctx["org"])   # lock + count inside the txn
+            row = await c.fetchrow(
+                """INSERT INTO projects (org_id, name, slug, created_by)
+                   VALUES ($1,$2,$3,$4)
+                   ON CONFLICT (org_id, slug) DO NOTHING
+                   RETURNING id, name, slug, created_at, created_by""",
+                ctx["org"]["id"], b.name, slug, ctx["user_id"])
     if not row:
         raise HTTPException(409, "A project with that name already exists")
     return ser(row)
@@ -106,13 +107,14 @@ async def mint_key(project_id: str, b: KeyNew, ctx: dict = Depends(admin_context
     if b.role not in {"agent", "ui"}:
         raise HTTPException(400, "role must be 'agent' or 'ui'")
     project = await owned_project(project_id, ctx["org"]["id"])
-    await enforce_key_quota(ctx["org"], project["id"])
     raw = os.urandom(32).hex()
     async with db.control_pool().acquire() as c:
-        row = await c.fetchrow(
-            """INSERT INTO api_keys (project_id, label, key_hash, role, created_by)
-               VALUES ($1,$2,$3,$4,$5) RETURNING id, label, role, created_at""",
-            project["id"], b.label, sha256_hex(raw), b.role, ctx["user_id"])
+        async with c.transaction():
+            await enforce_key_quota(c, ctx["org"], project["id"])   # lock + count in txn
+            row = await c.fetchrow(
+                """INSERT INTO api_keys (project_id, label, key_hash, role, created_by)
+                   VALUES ($1,$2,$3,$4,$5) RETURNING id, label, role, created_at""",
+                project["id"], b.label, sha256_hex(raw), b.role, ctx["user_id"])
     return {**ser(row), "token": raw,
             "note": "This token is shown only once — store it now."}
 

@@ -46,7 +46,14 @@ async def _init_conn(conn: asyncpg.Connection) -> None:
 async def _make_pool(dsn: str) -> asyncpg.Pool:
     return await asyncpg.create_pool(
         dsn, min_size=settings.db_pool_min, max_size=settings.db_pool_max,
-        init=_init_conn)
+        init=_init_conn,
+        # A single query may not hold a pooled connection forever. Without this a
+        # hung/slow statement pins a connection and, with a small pool, quickly
+        # starves every other request. statement_timeout is the server-side
+        # backstop; command_timeout is the client-side one.
+        command_timeout=30,
+        server_settings={"statement_timeout": "30000",
+                         "idle_in_transaction_session_timeout": "15000"})
 
 
 async def init_pools(retries: int = 30) -> None:

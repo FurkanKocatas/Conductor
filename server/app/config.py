@@ -87,6 +87,9 @@ class Settings:
     default_org: str = "Demo"
     default_project: str = "default"
 
+    # ── Limits ────────────────────────────────────────────────────
+    max_body_bytes: int = 262144         # 256 KB — hard ceiling on any request body
+
     # ── Observability (optional) ──────────────────────────────────
     sentry_dsn: str = ""
     sentry_traces_sample_rate: float = 0.05
@@ -136,6 +139,7 @@ def get_settings() -> Settings:
         bootstrap_admin_token=os.environ.get("BOOTSTRAP_ADMIN_TOKEN", ""),
         default_org=os.environ.get("DEFAULT_ORG", "Demo"),
         default_project=os.environ.get("DEFAULT_PROJECT", "default"),
+        max_body_bytes=int(os.environ.get("MAX_BODY_BYTES", "262144")),
         sentry_dsn=os.environ.get("SENTRY_DSN", ""),
         sentry_traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.05")),
         app_name=os.environ.get("APP_NAME", "Conductor"),

@@ -40,6 +40,57 @@ _BASE_HEADERS = {
 }
 
 
+class BodySizeLimitMiddleware:
+    """Reject oversized request bodies before they are buffered into memory.
+
+    A single point of defence for every JSON endpoint: without it, an
+    authenticated token could POST a multi-megabyte task spec or message and
+    bloat the database (or exhaust memory). Counts bytes as they stream in rather
+    than trusting Content-Length, which can be absent or wrong.
+    """
+
+    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+        self.app = app
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["method"] in ("GET", "HEAD", "DELETE"):
+            await self.app(scope, receive, send)
+            return
+
+        # Fast path: an honest, oversized Content-Length is rejected immediately.
+        for name, value in scope.get("headers", []):
+            if name == b"content-length" and value.isdigit() and int(value) > self.max_bytes:
+                await self._reject(send)
+                return
+
+        seen = 0
+
+        async def _counting_receive() -> Message:
+            nonlocal seen
+            message = await receive()
+            if message["type"] == "http.request":
+                seen += len(message.get("body", b""))
+                if seen > self.max_bytes:
+                    raise _BodyTooLarge()
+            return message
+
+        try:
+            await self.app(scope, _counting_receive, send)
+        except _BodyTooLarge:
+            await self._reject(send)
+
+    async def _reject(self, send: Send) -> None:
+        await send({"type": "http.response.start", "status": 413,
+                    "headers": [(b"content-type", b"application/json")]})
+        await send({"type": "http.response.body",
+                    "body": b'{"detail":"Request body too large"}'})
+
+
+class _BodyTooLarge(Exception):
+    pass
+
+
 class SecurityHeadersMiddleware:
     """Pure-ASGI middleware — avoids BaseHTTPMiddleware, which buffers responses
     and would interfere with the MCP streamable-HTTP endpoint."""

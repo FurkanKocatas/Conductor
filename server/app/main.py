@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 import asyncpg
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_request
 
@@ -21,7 +21,7 @@ from . import billing, db, saas
 from .config import settings
 from .logging_setup import get_logger, setup_logging
 from .observability import init_error_tracking
-from .security import SecurityHeadersMiddleware
+from .security import BodySizeLimitMiddleware, SecurityHeadersMiddleware
 from .util import ser, sha256_hex as _hash
 
 # NB: renamed from `log` to avoid colliding with the async activity-log helper
@@ -121,6 +121,8 @@ app.add_middleware(
 )
 # Outermost so the headers land on every response, including CORS preflights.
 app.add_middleware(SecurityHeadersMiddleware)
+# Reject oversized bodies before anything reads them.
+app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_body_bytes)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -174,9 +176,9 @@ async def ready():
 # Agents
 # ─────────────────────────────────────────────────────────────
 class AgentReg(BaseModel):
-    name: str
-    machine: str | None = None
-    note: str | None = None
+    name: str = Field(min_length=1, max_length=120)
+    machine: str | None = Field(default=None, max_length=200)
+    note: str | None = Field(default=None, max_length=1000)
 
 
 @app.post("/api/agents/register")
@@ -197,9 +199,9 @@ async def register_agent(b: AgentReg, who: dict = Depends(caller)):
 
 
 class Heartbeat(BaseModel):
-    name: str
-    status: str | None = None            # idle | working | blocked
-    note: str | None = None
+    name: str = Field(min_length=1, max_length=120)
+    status: str | None = Field(default=None, max_length=20)   # idle | working | blocked
+    note: str | None = Field(default=None, max_length=1000)
     current_task_id: str | None = None
 
 
@@ -238,12 +240,12 @@ async def list_agents(who: dict = Depends(caller)):
 # Tasks
 # ─────────────────────────────────────────────────────────────
 class TaskNew(BaseModel):
-    title: str
-    spec: str | None = None
+    title: str = Field(min_length=1, max_length=300)
+    spec: str | None = Field(default=None, max_length=50000)
     priority: int = 0
-    depends_on: list[str] = []
+    depends_on: list[str] = Field(default=[], max_length=100)
     assign_mode: str = "auto"            # auto | manual
-    assignee: str | None = None
+    assignee: str | None = Field(default=None, max_length=120)
 
 
 @app.post("/api/tasks")
@@ -498,7 +500,7 @@ async def finish_task(task_id: str, b: FinishIn, who: dict = Depends(caller)):
 # Messaging (agent-to-agent + UI feed)
 # ─────────────────────────────────────────────────────────────
 class MsgNew(BaseModel):
-    body: str
+    body: str = Field(min_length=1, max_length=8000)
     to_agent: str | None = None          # NULL = broadcast
     task_id: str | None = None
     from_agent: str | None = None
@@ -521,6 +523,7 @@ async def post_message(b: MsgNew, who: dict = Depends(caller)):
 async def poll_messages(since: int = 0, to: str | None = None, limit: int = 200,
                         who: dict = Depends(caller)):
     """Messages after `since` (message id). If `to` is provided: private-to-me + broadcast."""
+    limit = min(max(limit, 1), 500)      # never let a caller request an unbounded page
     async with pool.acquire() as c:
         if to:
             rows = await c.fetch(
@@ -546,7 +549,7 @@ _STREAM_KINDS = ("text", "tool", "result", "sys")
 
 
 class StreamIn(BaseModel):
-    content: str
+    content: str = Field(min_length=1, max_length=8000)
     kind: str = "text"                   # text | tool | result | sys
     task_id: str | None = None
 
@@ -710,7 +713,7 @@ async def new_tenant(b: TenantNew, who: dict = Depends(require_admin)):
 # Memory ledger + full timestamped journal (Memory page)
 # ─────────────────────────────────────────────────────────────
 class MemoryNew(BaseModel):
-    body: str
+    body: str = Field(min_length=1, max_length=50000)
     kind: str = "note"                   # note | decision | handoff
     task_id: str | None = None
     author: str | None = None

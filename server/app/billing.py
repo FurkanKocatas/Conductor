@@ -56,21 +56,25 @@ def plan_limits(plan: str | None) -> dict[str, int]:
 # ─────────────────────────────────────────────────────────────
 # Quota enforcement (called from the dashboard API)
 # ─────────────────────────────────────────────────────────────
-async def enforce_project_quota(org: dict) -> None:
+# These run INSIDE the caller's transaction (they take a connection) and take a
+# transaction-scoped advisory lock keyed on the org/project first. That serializes
+# concurrent creates for the same tenant, so the count-then-insert can't race two
+# requests past the limit (a classic time-of-check/time-of-use bug).
+async def enforce_project_quota(c, org: dict) -> None:
     limits = plan_limits(org.get("plan"))
-    async with db.control_pool().acquire() as c:
-        n = await c.fetchval("SELECT count(*) FROM projects WHERE org_id=$1", org["id"])
+    await c.execute("SELECT pg_advisory_xact_lock(hashtext($1))", f"proj:{org['id']}")
+    n = await c.fetchval("SELECT count(*) FROM projects WHERE org_id=$1", org["id"])
     if n >= limits["max_projects"]:
         raise HTTPException(
             402, f"Plan limit reached: {limits['max_projects']} projects. Upgrade to add more.")
 
 
-async def enforce_key_quota(org: dict, project_id) -> None:
+async def enforce_key_quota(c, org: dict, project_id) -> None:
     limits = plan_limits(org.get("plan"))
-    async with db.control_pool().acquire() as c:
-        n = await c.fetchval(
-            "SELECT count(*) FROM api_keys WHERE project_id=$1 AND revoked_at IS NULL",
-            project_id)
+    await c.execute("SELECT pg_advisory_xact_lock(hashtext($1))", f"key:{project_id}")
+    n = await c.fetchval(
+        "SELECT count(*) FROM api_keys WHERE project_id=$1 AND revoked_at IS NULL",
+        project_id)
     if n >= limits["max_keys_per_project"]:
         raise HTTPException(
             402, f"Plan limit reached: {limits['max_keys_per_project']} active keys "
