@@ -1,0 +1,98 @@
+.chat {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  height: 100%;
+  min-height: 0;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.chat__log {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 4px 4px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.msg { display: flex; gap: 10px; }
+.msg__mark { width: 10px; flex: none; padding-top: 4px; }
+.msg__body { flex: 1; min-width: 0; }
+.msg__head { display: flex; align-items: baseline; gap: 8px; }
+.msg__who { font-family: var(--font-serif); font-weight: 700; font-size: 14px; letter-spacing: -.01em; }
+.msg__to {
+  font-family: var(--font-mono); font-size: 9.5px;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--red);
+}
+.msg__ts { margin-left: auto; font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-30); }
+.msg__text { font-size: 13px; line-height: 1.55; margin-top: 2px; white-space: pre-wrap; }
+.msg__text .mention {
+  font-weight: 700;
+  color: var(--red);
+  border-bottom: 1.5px solid currentColor;
+}
+.msg.is-bot .msg__who::after {
+  content: "AI";
+  font-family: var(--font-mono);
+  font-size: 8px; letter-spacing: .12em;
+  border: 1px solid var(--rule-soft); border-radius: 2px;
+  padding: 0 3px; margin-left: 6px; vertical-align: middle;
+  color: var(--ink-50);
+}
+
+.chat__empty {
+  margin: auto;
+  text-align: center;
+  color: var(--ink-30);
+  font-size: 12px;
+  line-height: 1.8;
+  padding: 40px 20px;
+}
+
+/* Composer */
+.composer {
+  position: relative;
+  border-top: 2.5px solid var(--rule);
+  padding-top: 12px;
+  display: flex;
+  gap: 9px;
+  align-items: flex-end;
+}
+.composer textarea {
+  flex: 1;
+  min-height: 42px;
+  max-height: 160px;
+  resize: none;
+}
+
+/* @mention popover */
+.mentions {
+  position: absolute;
+  left: 0; right: 74px;
+  bottom: calc(100% + 4px);
+  max-height: 232px;
+  overflow-y: auto;
+  background: var(--paper);
+  border: var(--border) solid var(--rule);
+  box-shadow: var(--lift);
+  z-index: 30;
+}
+.mentions__hdr {
+  font-family: var(--font-mono);
+  font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-50);
+  padding: 8px 11px 5px;
+  border-bottom: 1px dotted var(--rule-soft);
+}
+.mentions__item {
+  display: flex; align-items: baseline; gap: 9px;
+  padding: 8px 11px;
+  cursor: pointer;
+  border-bottom: 1px dotted var(--rule-soft);
+}
+.mentions__item:last-child { border-bottom: none; }
+.mentions__item.on { background: var(--paper-2); box-shadow: inset 2px 0 0 var(--red); }
+.mentions__name { font-family: var(--font-serif); font-weight: 700; font-size: 14px; }
+.mentions__insert { font-family: var(--font-mono); font-size: 10px; color: var(--red); }
+.mentions__sub { margin-left: auto; font-size: 10px; color: var(--ink-50); }

@@ -43,6 +43,7 @@ export function Shell({
 
           <nav className="nav">
             <NavLink to="/board">Board</NavLink>
+            <NavLink to="/chat">Chat</NavLink>
             <NavLink to="/memory">Memory</NavLink>
             <NavLink to="/analytics">Analytics</NavLink>
           </nav>

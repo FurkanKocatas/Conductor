@@ -1,0 +1,96 @@
+.term-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgb(15 13 10 / .55);
+  display: grid; place-items: center;
+  padding: 24px;
+}
+.term {
+  position: relative;
+  width: min(820px, 96vw);
+  height: min(78vh, 640px);
+  background: var(--paper);
+  border: var(--border) solid var(--rule);
+  box-shadow: var(--lift);
+  display: flex;
+  flex-direction: column;
+}
+.term__head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px 16px 11px;
+  border-bottom: 2.5px solid var(--rule);
+}
+.term__fig {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-30);
+}
+.term__who { font-family: var(--font-serif); font-weight: 700; font-size: 22px; letter-spacing: -.02em; }
+.term__sub {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-50);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.term__x {
+  border: 1.5px solid var(--rule); background: var(--paper);
+  width: 28px; height: 28px; cursor: pointer;
+  font-family: var(--font-mono); font-size: 14px; line-height: 1;
+}
+.term__x:hover { background: var(--rule); color: var(--paper); }
+
+.term__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+}
+/* Each output kind is a different printed voice. */
+.s-text { white-space: pre-wrap; color: var(--text); margin: 2px 0; }
+.s-tool {
+  white-space: pre-wrap;
+  color: var(--blue);
+  border-left: 2px solid var(--blue);
+  padding: 3px 0 3px 10px;
+  margin: 7px 0;
+}
+.s-tool::before { content: "$ "; opacity: .6; }
+.s-result {
+  white-space: pre-wrap;
+  color: var(--green);
+  border-left: 2px solid var(--green);
+  padding: 3px 0 3px 10px;
+  margin: 7px 0;
+}
+.s-sys {
+  color: var(--ink-50);
+  font-style: italic;
+  margin: 6px 0;
+}
+.term__empty {
+  color: var(--ink-30);
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 11px;
+  letter-spacing: .04em;
+  line-height: 1.7;
+}
+
+.live-cursor {
+  display: inline-block;
+  width: .5em; height: 1em;
+  background: var(--red);
+  vertical-align: text-bottom;
+  animation: blink 1.1s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .live-cursor { animation: none; } }

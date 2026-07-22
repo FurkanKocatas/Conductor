@@ -7,6 +7,7 @@ import { LANES, agentInk, agentLive, ago, initials, laneLabel } from "../lib/lan
 import { demoState } from "../lib/demoData";
 import { Shell } from "../components/Shell";
 import { Button, Chip, Empty } from "../components/ui";
+import { Terminal } from "../components/Terminal";
 import "./Board.css";
 
 const POLL_MS = 2500;
@@ -17,6 +18,7 @@ export default function Board({ demo = false }: { demo?: boolean }) {
     demo ? "live" : "connecting");
   const [needsToken, setNeedsToken] = useState(() => !demo && !getLocalToken());
   const [dragId, setDragId] = useState<string | null>(null);
+  const [watch, setWatch] = useState<string | null>(null);
   const [overLane, setOverLane] = useState<Status | null>(null);
   // Skip a poll while a drag is in flight so the board can't snap back mid-drop.
   const busy = useRef(false);
@@ -94,7 +96,7 @@ export default function Board({ demo = false }: { demo?: boolean }) {
           </div>
           <div className="scroll">
             {state?.agents.length
-              ? state.agents.map((a) => <AgentRow key={a.id} agent={a} />)
+              ? state.agents.map((a) => <AgentRow key={a.id} agent={a} onWatch={() => setWatch(a.name)} />)
               : <Empty>No performers</Empty>}
           </div>
         </section>
@@ -156,6 +158,7 @@ export default function Board({ demo = false }: { demo?: boolean }) {
           </div>
         </section>
       </div>
+      {watch && <Terminal agent={watch} demo={demo} onClose={() => setWatch(null)} />}
     </Shell>
   );
 }
@@ -201,11 +204,15 @@ function TaskCard({
   );
 }
 
-function AgentRow({ agent }: { agent: Agent }) {
+function AgentRow({ agent, onWatch }: { agent: Agent; onWatch: () => void }) {
   const live = agentLive(agent.last_heartbeat);
   const status = live ? agent.status : "offline";
   return (
-    <div className={`agent${live ? "" : " is-off"}`}>
+    <button
+      className={`agent${live ? "" : " is-off"}`}
+      onClick={onWatch}
+      title={`Watch ${agent.name}'s live stream`}
+    >
       <span className="agent__mark" aria-hidden="true"
             style={{ color: agentInk(agent.name) }}>
         {status === "working" ? "▸" : status === "blocked" ? "✖" : "•"}
@@ -218,7 +225,7 @@ function AgentRow({ agent }: { agent: Agent }) {
         {agent.branch && <div className="agent__branch">⎇ {agent.branch}</div>}
       </div>
       <span className="agent__hb">{ago(agent.last_heartbeat)}</span>
-    </div>
+    </button>
   );
 }
 

@@ -141,3 +141,18 @@ export const deleteTask = (id: string) =>
 
 export const postMessage = (body: string, to_agent?: string) =>
   api<Message>("POST", "/api/messages", { body, to_agent: to_agent || null });
+
+export const pollMessages = (since = 0, limit = 200) =>
+  api<Message[]>("GET", `/api/messages?since=${since}&limit=${limit}`);
+
+export interface StreamEvent {
+  id: number;
+  kind: "text" | "tool" | "result" | "sys";
+  content: string;
+  task_id: string | null;
+  created_at: string;
+}
+
+/** Tail a teammate's live output. `since` is the last event id seen. */
+export const tailStream = (agent: string, since = 0) =>
+  api<StreamEvent[]>("GET", `/api/stream?agent=${encodeURIComponent(agent)}&since=${since}`);

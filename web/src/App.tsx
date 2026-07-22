@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Board from "./routes/Board";
+import Chat from "./routes/Chat";
 
 /** Placeholder surfaces — built out in the next slice. */
 function Soon({ name }: { name: string }) {
@@ -17,6 +18,8 @@ export default function App() {
         <Route path="/" element={<Navigate to="/board" replace />} />
         <Route path="/board" element={<Board />} />
         <Route path="/demo" element={<Board demo />} />
+        <Route path="/chat" element={<Chat />} />
+        <Route path="/demo/chat" element={<Chat demo />} />
         <Route path="/memory" element={<Soon name="Memory" />} />
         <Route path="/analytics" element={<Soon name="Analytics" />} />
         <Route path="*" element={<Navigate to="/board" replace />} />
