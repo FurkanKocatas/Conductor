@@ -1,217 +1,339 @@
 <!doctype html>
-<html lang="en">
+<html lang="tr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Conductor</title>
 <style>
   :root{
-    --bg:#f4f6fb; --panel:#ffffff; --ink:#1e2438; --muted:#6b7488; --line:#e5e9f2;
-    --brand:#4f46e5; --brand2:#06b6d4; --accent:#ede9fe;
-    --todo:#94a3b8; --claimed:#8b5cf6; --prog:#0ea5e9; --blocked:#ef4444; --review:#f59e0b; --done:#10b981;
-    --shadow:0 1px 3px rgba(20,30,60,.06),0 8px 24px rgba(20,30,60,.05);
+    --bg:#eef1f8; --bg2:#e6eaf4; --panel:#ffffff; --panel2:#f7f9fd;
+    --ink:#161a2b; --ink2:#3d4560; --muted:#6b7488; --faint:#9aa2b5;
+    --line:#e4e8f2; --line2:#eef1f8;
+    --brand:#5b54e6; --brand-ink:#4b44d6; --brand-soft:#ecebfe;
+    --ok:#12b886; --warn:#f59f0a; --danger:#ef4444; --info:#2f9bee;
+    --todo:#8b93a7; --claimed:#7c6df2; --prog:#2f9bee; --blocked:#ef4444; --review:#f59f0a; --done:#12b886;
+    --radius:14px; --radius-sm:10px;
+    --shadow:0 1px 2px rgba(20,30,60,.04), 0 6px 20px rgba(20,30,60,.06);
+    --shadow-lg:0 24px 70px rgba(20,30,60,.28);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
   }
+  :root[data-theme="dark"]{
+    --bg:#0e1017; --bg2:#0a0c12; --panel:#171a24; --panel2:#1e222e;
+    --ink:#e8ebf5; --ink2:#c3c9d8; --muted:#8b93a7; --faint:#5b6376;
+    --line:#262b39; --line2:#20242f;
+    --brand:#7d76f5; --brand-ink:#8f88ff; --brand-soft:#241f47;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    --shadow-lg:0 24px 70px rgba(0,0,0,.6);
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#0e1017; --bg2:#0a0c12; --panel:#171a24; --panel2:#1e222e;
+    --ink:#e8ebf5; --ink2:#c3c9d8; --muted:#8b93a7; --faint:#5b6376;
+    --line:#262b39; --line2:#20242f; --brand:#7d76f5; --brand-ink:#8f88ff; --brand-soft:#241f47;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35); --shadow-lg:0 24px 70px rgba(0,0,0,.6);
+  }}
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
-  button{font-family:inherit;cursor:pointer}
-  /* top bar */
-  header{display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--panel);
-         border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-.3px}
-  .brand .dot{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--brand),var(--brand2))}
-  .proj{color:var(--muted);font-weight:500;font-size:13px;padding:3px 10px;background:var(--bg);border-radius:20px}
-  .live{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;margin-left:auto}
-  .pulse{width:8px;height:8px;border-radius:50%;background:var(--done);box-shadow:0 0 0 0 rgba(16,185,129,.5);animation:p 2s infinite}
-  @keyframes p{0%{box-shadow:0 0 0 0 rgba(16,185,129,.5)}70%{box-shadow:0 0 0 7px rgba(16,185,129,0)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
-  .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:9px;font-weight:600;font-size:13px}
-  .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
-  .btn.primary:hover{background:#4338ca}
-  .btn.ghost{border:none;background:transparent;color:var(--muted);padding:6px 8px}
-  /* layout */
-  main{display:grid;grid-template-columns:240px 1fr 300px;gap:14px;padding:14px;height:calc(100vh - 59px)}
-  .col{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
-       display:flex;flex-direction:column;min-height:0;overflow:hidden}
-  .col > h2{margin:0;padding:13px 16px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);
-            border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
-  .scroll{overflow-y:auto;padding:10px;flex:1;min-height:0}
-  /* agents */
-  .agent{padding:11px 12px;border-radius:11px;border:1px solid var(--line);margin-bottom:9px;background:#fcfdff;cursor:pointer;transition:border-color .12s,box-shadow .12s}
-  .agent:hover{border-color:#c7d2fe;box-shadow:0 2px 8px rgba(79,70,229,.08)}
-  .agent .top{display:flex;align-items:center;gap:8px}
-  .agent .nm{font-weight:650}
-  .sdot{width:9px;height:9px;border-radius:50%;flex:none}
-  .s-working{background:var(--done)} .s-idle{background:var(--todo)} .s-blocked{background:var(--blocked)} .s-offline{background:#cbd5e1}
-  #users .urow{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:13px;border-bottom:1px solid var(--line)}
-  #users .urow .nm{font-weight:600} #users .urow .ur{margin-left:auto;font-size:11px;color:var(--muted)}
-  .agent .meta{color:var(--muted);font-size:12px;margin-top:5px;line-height:1.4}
-  .agent .task{margin-top:6px;font-size:12px;color:var(--prog);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .gitline{margin-top:5px;font-size:11px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .g-ahead{color:#059669} .g-behind{color:#d97706} .g-conf{color:var(--blocked);font-weight:700} .g-dirty{color:#d97706}
-  /* board */
-  #boardWrap{padding:0;overflow:hidden}
-  #board{display:flex;gap:12px;overflow-x:auto;padding:12px;height:100%}
-  .lane{flex:0 0 236px;display:flex;flex-direction:column;background:var(--bg);border-radius:12px;min-height:0}
-  .lane > h3{margin:0;padding:11px 13px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px;position:sticky;top:0}
-  .lane h3 .cnt{margin-left:auto;color:var(--muted);font-weight:600;background:var(--panel);border-radius:20px;padding:1px 8px;font-size:11px}
-  .lane .bar{width:9px;height:9px;border-radius:3px}
-  .lane .items{overflow-y:auto;padding:4px 9px 12px;flex:1;min-height:40px}
-  .lane.drag{outline:2px dashed var(--brand);outline-offset:-4px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px;margin-bottom:9px;box-shadow:0 1px 2px rgba(20,30,60,.05);cursor:grab}
+  html,body{height:100%}
+  body{margin:0;font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14px;
+       -webkit-font-smoothing:antialiased;overflow:hidden}
+  button,input,textarea,select{font-family:inherit}
+  button{cursor:pointer}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:10px;border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:var(--faint)}
+  .app{display:flex;flex-direction:column;height:100vh}
+
+  /* ── HEADER ── */
+  header{display:flex;align-items:center;gap:14px;padding:0 20px;height:58px;flex:none;
+         background:var(--panel);border-bottom:1px solid var(--line);z-index:30}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:750;font-size:17px;letter-spacing:-.4px}
+  .brand .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#6a63f0,#8f88ff 45%,#39c6e6);
+       display:grid;place-items:center;color:#fff;font-size:16px;box-shadow:0 4px 12px rgba(91,84,230,.35)}
+  .proj{color:var(--muted);font-weight:600;font-size:12.5px;padding:4px 11px;background:var(--bg2);border-radius:20px}
+  nav.tabs{display:flex;gap:2px;background:var(--bg2);padding:3px;border-radius:11px}
+  nav.tabs a{padding:7px 15px;border-radius:8px;font-weight:600;font-size:13px;color:var(--muted);text-decoration:none;transition:.12s}
+  nav.tabs a:hover{color:var(--ink)}
+  nav.tabs a.active{background:var(--panel);color:var(--brand-ink);box-shadow:var(--shadow)}
+  .spacer{flex:1}
+  .live{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12.5px;font-weight:600}
+  .pulse{width:8px;height:8px;border-radius:50%;background:var(--done);box-shadow:0 0 0 0 rgba(18,184,134,.5);animation:p 2.4s infinite}
+  .pulse.off{background:var(--danger);animation:none}
+  @keyframes p{0%{box-shadow:0 0 0 0 rgba(18,184,134,.5)}70%{box-shadow:0 0 0 8px rgba(18,184,134,0)}100%{box-shadow:0 0 0 0 rgba(18,184,134,0)}}
+  .iconbtn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+           display:grid;place-items:center;font-size:16px;transition:.12s}
+  .iconbtn:hover{color:var(--ink);border-color:var(--faint);background:var(--panel2)}
+  .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 15px;border-radius:10px;font-weight:650;font-size:13px;transition:.12s;display:inline-flex;align-items:center;gap:7px}
+  .btn:hover{border-color:var(--faint);background:var(--panel2)}
+  .btn.primary{background:linear-gradient(135deg,#6a63f0,#5b54e6);color:#fff;border:none;box-shadow:0 4px 12px rgba(91,84,230,.3)}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn.danger{background:var(--danger);color:#fff;border:none}
+  .btn.ok{background:var(--ok);color:#fff;border:none}
+  .btn.sm{padding:6px 11px;font-size:12px;border-radius:8px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* ── TEAM STRIP ── */
+  .team{display:flex;align-items:center;gap:9px;padding:9px 20px;background:var(--panel);border-bottom:1px solid var(--line);
+        overflow-x:auto;flex:none;min-height:54px}
+  .team .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--faint);font-weight:700;flex:none;margin-right:2px}
+  .apill{display:flex;align-items:center;gap:9px;padding:7px 13px 7px 9px;border:1px solid var(--line);border-radius:30px;
+         background:var(--panel2);cursor:pointer;flex:none;transition:.12s;max-width:280px}
+  .apill:hover{border-color:var(--brand);box-shadow:0 2px 10px rgba(91,84,230,.12)}
+  .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px;flex:none;position:relative}
+  .av .sdot{position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;border:2px solid var(--panel)}
+  .apill .anm{font-weight:650;font-size:13px}
+  .apill .ast{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .apill .atask{font-size:11px;color:var(--prog);font-weight:600;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .s-working{background:var(--done)} .s-idle{background:var(--warn)} .s-blocked{background:var(--danger)} .s-offline{background:var(--faint)}
+  .team .empty-team{color:var(--faint);font-size:12.5px}
+
+  /* ── BOARD ── */
+  .work{flex:1;display:flex;min-height:0;position:relative}
+  #board{flex:1;display:flex;gap:14px;overflow-x:auto;padding:16px 18px;align-items:flex-start;min-height:0}
+  .lane{flex:1 1 0;min-width:250px;max-width:none;display:flex;flex-direction:column;background:var(--bg2);
+        border:1px solid var(--line2);border-radius:var(--radius);max-height:100%}
+  .lane.drop{outline:2px dashed var(--brand);outline-offset:-3px;background:var(--brand-soft)}
+  .lane > .lh{display:flex;align-items:center;gap:9px;padding:12px 14px 10px;position:sticky;top:0;flex:none}
+  .lh .bar{width:10px;height:10px;border-radius:4px;flex:none}
+  .lh .name{font-weight:700;font-size:13px}
+  .lh .cnt{margin-left:auto;color:var(--muted);font-weight:700;background:var(--panel);border-radius:20px;padding:1px 9px;font-size:11px;border:1px solid var(--line)}
+  .lh .plus{width:24px;height:24px;border-radius:7px;border:1px dashed var(--line);background:transparent;color:var(--muted);display:grid;place-items:center;font-size:15px}
+  .lh .plus:hover{border-color:var(--brand);color:var(--brand)}
+  .items{overflow-y:auto;padding:2px 10px 12px;flex:1;min-height:60px}
+  .lane.done .items .card{opacity:.82}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin-bottom:10px;
+        box-shadow:var(--shadow);cursor:grab;transition:.12s;border-left:3px solid transparent}
+  .card:hover{border-color:var(--faint);transform:translateY(-1px);box-shadow:0 4px 16px rgba(20,30,60,.09)}
   .card:active{cursor:grabbing}
-  .card .t{font-weight:600;line-height:1.35;margin-bottom:8px}
-  .card .foot{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-  .chip{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--bg);color:var(--muted);font-weight:600}
-  .chip.pri{background:#fef3c7;color:#b45309}
-  .chip.mode-auto{background:#e0e7ff;color:#4338ca} .chip.mode-manual{background:#cffafe;color:#0e7490}
-  .card select{margin-top:8px;width:100%;border:1px solid var(--line);border-radius:8px;padding:5px 7px;font-size:12px;color:var(--ink);background:#fcfdff}
-  .card .dep{color:var(--blocked);font-size:11px;margin-top:6px}
-  /* feed */
-  /* feed cards */
-  .fcard{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:8px;cursor:pointer;transition:border-color .12s,box-shadow .12s}
-  .fcard:hover{border-color:#c7d2fe;box-shadow:0 2px 8px rgba(79,70,229,.08)}
-  .fcard.msg{background:#faf5ff}
-  .fc-top{display:flex;align-items:center;gap:7px;font-size:12px}
-  .fc-ico{flex:none}
-  .fc-who{font-weight:650}
-  .fc-sub{color:var(--muted)}
-  .fc-tm{margin-left:auto;color:var(--muted);font-size:11px;flex:none}
-  .fc-act{color:var(--muted);font-size:12.5px;margin-top:3px}
-  .fc-tgt{font-weight:600;font-size:12.5px;margin-top:3px;line-height:1.35}
-  .fc-body{font-size:12.5px;margin-top:4px;line-height:1.4}
-  /* detail modal */
-  .modal.detail{width:min(560px,94vw);padding:0;overflow:hidden}
-  .dhead{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--line)}
-  .dhead h3{margin:0}
-  .dbody{padding:6px 20px 20px;max-height:74vh;overflow-y:auto}
-  .dsec{margin-top:16px}
-  .dsec h4{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
-  .dtask{border:1px solid var(--line);border-radius:11px;padding:12px;background:#fcfdff}
-  .dtask-h{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:6px;line-height:1.35}
-  .dmeta{color:var(--muted);font-size:12px}
-  .dspec{margin-top:8px;font-size:13px;line-height:1.5;white-space:pre-wrap}
-  .art{background:#f6f8fc;border-radius:8px;padding:8px;font-size:11px;overflow-x:auto;margin-top:8px}
-  .badge{font-size:11px;padding:2px 9px;border-radius:20px;font-weight:700;color:#fff;flex:none}
+  .card.pri-hi{border-left-color:var(--warn)}
+  .card .ct{font-weight:640;line-height:1.4;font-size:13.5px;color:var(--ink)}
+  .card .cspec{color:var(--muted);font-size:12px;line-height:1.45;margin-top:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card .cfoot{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .chip{font-size:11px;padding:2.5px 9px;border-radius:20px;background:var(--bg2);color:var(--muted);font-weight:650;display:inline-flex;align-items:center;gap:4px}
+  .chip.pri{background:#fff4de;color:#b45309} :root[data-theme="dark"] .chip.pri{background:#3a2e12;color:#f6c25a}
+  .chip.who{background:var(--brand-soft);color:var(--brand-ink)}
+  .chip.miniav{padding:2px 9px 2px 3px}
+  .chip .mav{width:17px;height:17px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:9px;font-weight:800}
+  .card .cdep{color:var(--warn);font-size:11px;margin-top:8px;font-weight:600;display:flex;align-items:center;gap:5px}
+  .card .runner{margin-top:9px;font-size:11px;color:var(--prog);font-weight:650;display:flex;align-items:center;gap:6px}
+  .card .runner .rd{width:7px;height:7px;border-radius:50%;background:var(--prog);animation:blink 1.1s infinite}
+  @keyframes blink{50%{opacity:.25}}
+  .lane .empty{color:var(--faint);font-size:12px;text-align:center;padding:18px 8px;border:1.5px dashed var(--line);border-radius:11px;margin:4px 2px}
+
+  /* ── ACTIVITY DRAWER ── */
+  #drawer{width:340px;flex:none;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;transition:margin-right .2s;min-height:0}
+  #drawer.hidden{margin-right:-341px}
+  .dwh{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);font-weight:700;font-size:13px;gap:8px}
+  .dwh .cls{margin-left:auto}
+  #feed{overflow-y:auto;padding:12px;flex:1}
+  .fcard{border-radius:11px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:.12s;border:1px solid transparent;display:flex;gap:10px}
+  .fcard:hover{background:var(--panel2);border-color:var(--line)}
+  .fic{width:30px;height:30px;border-radius:9px;background:var(--bg2);display:grid;place-items:center;font-size:14px;flex:none}
+  .fcard.msg .fic{background:var(--brand-soft)}
+  .fc-who{font-weight:650;font-size:12.5px}
+  .fc-tm{color:var(--faint);font-size:11px}
+  .fc-act{color:var(--muted);font-size:12px;margin-top:1px}
+  .fc-tgt{font-weight:600;font-size:12.5px;margin-top:2px;line-height:1.35}
+  .fc-body{font-size:12.5px;margin-top:3px;line-height:1.45;color:var(--ink2)}
+  .fabtoggle{position:absolute;right:16px;bottom:16px;width:46px;height:46px;border-radius:14px;border:none;
+     background:var(--panel);box-shadow:var(--shadow-lg);color:var(--brand-ink);font-size:19px;display:none;place-items:center;z-index:15;border:1px solid var(--line)}
+  #drawer.hidden ~ .fabtoggle{display:grid}
+
+  /* ── MODAL ── */
+  .overlay{position:fixed;inset:0;background:rgba(12,16,32,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px;animation:fade .15s}
+  @keyframes fade{from{opacity:0}}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-lg);width:min(540px,96vw);max-height:92vh;display:flex;flex-direction:column;animation:pop .17s}
+  .modal.wide{width:min(680px,96vw)}
+  @keyframes pop{from{transform:translateY(10px) scale(.98);opacity:.6}}
+  .mh{display:flex;align-items:center;gap:10px;padding:18px 22px 14px;border-bottom:1px solid var(--line)}
+  .mh h3{margin:0;font-size:16px;font-weight:720}
+  .mh .x{margin-left:auto}
+  .mb{padding:18px 22px;overflow-y:auto}
+  .mf{display:flex;gap:10px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line);flex-wrap:wrap}
+  label{display:block;font-size:12px;font-weight:650;color:var(--muted);margin:15px 0 6px}
+  label:first-child{margin-top:0}
+  .field{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;font-size:14px;color:var(--ink);background:var(--panel2);transition:.12s;outline:none}
+  .field:focus{border-color:var(--brand);background:var(--panel);box-shadow:0 0 0 3px var(--brand-soft)}
+  textarea.field{resize:vertical;min-height:80px;line-height:1.55}
+  textarea.big{min-height:150px;font-size:14.5px}
+  .row{display:flex;gap:12px}.row>*{flex:1;min-width:0}
+  .hint{color:var(--muted);font-size:12px;margin-top:7px;line-height:1.45}
+  .helpbox{background:var(--brand-soft);border:1px solid transparent;border-radius:11px;padding:11px 13px;font-size:12.5px;line-height:1.5;color:var(--brand-ink);margin-top:6px}
+  /* assignee picker */
+  .whopick{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+  .whoopt{display:flex;align-items:center;gap:8px;padding:7px 13px 7px 8px;border:1.5px solid var(--line);border-radius:30px;background:var(--panel2);cursor:pointer;font-weight:600;font-size:13px;transition:.12s}
+  .whoopt:hover{border-color:var(--brand)}
+  .whoopt.on{border-color:var(--brand);background:var(--brand-soft);color:var(--brand-ink)}
+  .whoopt .av{width:24px;height:24px;font-size:11px}
+  .prisel{display:flex;gap:7px}
+  .prisel .po{flex:1;text-align:center;padding:9px;border:1.5px solid var(--line);border-radius:10px;background:var(--panel2);font-weight:650;font-size:13px;cursor:pointer}
+  .prisel .po.on{border-color:var(--warn);background:#fff4de;color:#b45309}
+  :root[data-theme="dark"] .prisel .po.on{background:#3a2e12;color:#f6c25a}
+
+  /* detail modal bits */
+  .dsec{margin-top:18px}
+  .dsec:first-child{margin-top:0}
+  .dsec h4{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--faint);font-weight:700}
+  .badge{font-size:11px;padding:3px 11px;border-radius:20px;font-weight:700;color:#fff}
   .b-todo{background:var(--todo)} .b-claimed{background:var(--claimed)} .b-in_progress{background:var(--prog)}
-  .b-blocked{background:var(--blocked)} .b-review{background:var(--review)} .b-done{background:var(--done)}
-  .tl{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px}
-  .tl:last-child{border-bottom:none}
-  .tl-ic{flex:none} .tl-tx{flex:1;line-height:1.4} .tl-tm{color:var(--muted);font-size:11px;flex:none}
-  .dmsg{background:#faf5ff;border-radius:9px;padding:8px 10px;margin-bottom:7px;font-size:12.5px;line-height:1.45}
+  .b-blocked{background:var(--danger)} .b-review{background:var(--review)} .b-done{background:var(--done)}
+  .dtask{border:1px solid var(--line);border-radius:12px;padding:13px;background:var(--panel2)}
+  .dtask-h{display:flex;align-items:center;gap:9px;font-size:14px;margin-bottom:7px;line-height:1.35;font-weight:640}
+  .dmeta{color:var(--muted);font-size:12px;line-height:1.5}
+  .dspec{margin-top:9px;font-size:13px;line-height:1.6;white-space:pre-wrap;color:var(--ink2)}
+  .art{background:var(--bg2);border-radius:9px;padding:10px;font-size:11.5px;overflow-x:auto;margin-top:9px;font-family:var(--mono)}
+  .tl{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line2);font-size:12.5px;align-items:baseline}
+  .tl:last-child{border:none}.tl-ic{flex:none}.tl-tx{flex:1;line-height:1.45}.tl-tm{color:var(--faint);font-size:11px;flex:none}
+  .dmsg{background:var(--brand-soft);border-radius:10px;padding:9px 11px;margin-bottom:7px;font-size:12.5px;line-height:1.5}
   .dmsg .rt{color:var(--muted);font-size:11px;float:right}
-  .agent-hero{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:700}
-  .agent-hero .dmeta{font-weight:400}
-  /* modal + overlay */
-  .overlay{position:fixed;inset:0;background:rgba(15,20,40,.45);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:50}
-  .modal{background:var(--panel);border-radius:16px;padding:24px;width:min(460px,92vw);box-shadow:0 20px 60px rgba(20,30,60,.25)}
-  .modal h3{margin:0 0 16px}
-  .modal label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 5px}
-  .modal input,.modal textarea,.modal select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:14px;font-family:inherit;color:var(--ink)}
-  .modal textarea{resize:vertical;min-height:64px}
-  .modal .row{display:flex;gap:10px}.modal .row>*{flex:1}
-  .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
-  .hint{color:var(--muted);font-size:12px;margin-top:6px}
-  .empty{color:#aab2c5;font-size:12px;text-align:center;padding:14px}
-  /* tabs + pages */
-  nav.tabs{display:flex;gap:4px;margin-left:6px}
-  nav.tabs a{padding:7px 14px;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted);text-decoration:none}
-  nav.tabs a:hover{background:var(--bg);color:var(--ink)}
-  nav.tabs a.active{background:var(--accent);color:var(--brand)}
-  section.page{padding:16px;height:calc(100vh - 59px);overflow-y:auto}
-  .page-inner{max-width:1080px;margin:0 auto}
-  /* memory */
-  .bk-add{display:flex;gap:8px;margin-bottom:12px}
-  .bk-add input{flex:1;border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13px;font-family:inherit;color:var(--ink)}
-  .bk-tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-  .bk-tools input,.bk-tools select{border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:13px;font-family:inherit;color:var(--ink);background:var(--panel)}
-  .bk-tools .search{flex:1;min-width:170px}
-  #journal{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
-  .jrow{display:flex;gap:11px;align-items:baseline;padding:10px 14px;border-bottom:1px solid var(--line)}
-  .jrow:last-child{border-bottom:none}
-  .jts{flex:none;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;width:96px}
-  .jico{flex:none}
-  .jtx{flex:1;font-size:13px;line-height:1.5}
-  .jwho{font-weight:650}
-  .jtag{font-size:10px;padding:1px 7px;border-radius:20px;font-weight:700}
-  .t-activity{background:#e0e7ff;color:#4338ca} .t-message{background:#f3e8ff;color:#7e22ce} .t-memory{background:#dcfce7;color:#15803d}
-  .k-handoff{background:#fef3c7;color:#b45309} .k-decision{background:#dbeafe;color:#1d4ed8} .k-note{background:#f1f5f9;color:#475569}
-  .jbody{background:#f8faff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:5px;font-size:12.5px;line-height:1.5;white-space:pre-wrap}
-  /* analytics */
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
-  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 18px;box-shadow:var(--shadow)}
-  .stat .n{font-size:26px;font-weight:750;letter-spacing:-.5px}
-  .stat .l{color:var(--muted);font-size:12px;margin-top:2px}
-  .charts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  .chart{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
-  .chart h3{margin:0 0 10px;font-size:13px}
-  .chart.wide{grid-column:1 / -1}
-  @media(max-width:820px){.charts{grid-template-columns:1fr}}
+  .hero{display:flex;align-items:center;gap:12px}
+  .hero .av{width:44px;height:44px;font-size:17px}
+  .hero .hnm{font-weight:750;font-size:17px}
+  .empty{color:var(--faint);font-size:12.5px;text-align:center;padding:14px}
+
+  /* pages */
+  .page{flex:1;overflow-y:auto;padding:22px;display:none}
+  .page.on{display:block}
+  .page-inner{max-width:1100px;margin:0 auto}
+  /* Sohbet (grup chat) */
+  #view-sohbet{padding:0}
+  #view-sohbet.on{display:flex;flex-direction:column;overflow:hidden}
+  .chatwrap{display:flex;flex-direction:column;flex:1;min-height:0;max-width:920px;width:100%;margin:0 auto}
+  .chatlog{flex:1;overflow-y:auto;padding:22px 18px;display:flex;flex-direction:column;gap:8px}
+  .cmsg{max-width:74%;padding:8px 12px 6px;border-radius:15px;font-size:14px;line-height:1.45;box-shadow:var(--shadow);word-wrap:break-word;overflow-wrap:anywhere;white-space:pre-wrap}
+  .cmsg .cwho{font-size:11px;font-weight:700;margin-bottom:2px;color:var(--brand-ink)}
+  .cmsg .ctime{font-size:10px;color:var(--faint);margin-top:2px;text-align:right;font-variant-numeric:tabular-nums}
+  .cmsg.them{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:5px}
+  .cmsg.me{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:5px}
+  .cmsg.me .cwho{color:rgba(255,255,255,.9)} .cmsg.me .ctime{color:rgba(255,255,255,.72)}
+  .cmsg.bot{background:var(--brand-soft);border:1px solid transparent}
+  .cmsg.bot .cwho{color:var(--brand-ink)}
+  .chatempty{margin:auto;color:var(--faint);font-size:14px;text-align:center;line-height:1.7}
+  .chatbar{flex:none;display:flex;gap:9px;padding:12px 16px;border-top:1px solid var(--line);background:var(--panel);position:relative}
+  .chatbar .field{flex:1;margin:0}
+  .mentionpop{position:absolute;left:16px;right:16px;bottom:calc(100% - 2px);max-height:236px;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);padding:5px;display:none;z-index:30}
+  .mentionpop.on{display:block}
+  .mentionhdr{font-size:11px;font-weight:700;color:var(--faint);padding:5px 9px 3px}
+  .mitem{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;cursor:pointer;font-size:13.5px}
+  .mitem.on,.mitem:hover{background:var(--brand-soft)}
+  .mitem .mava{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--bg2);font-size:12px;flex:none}
+  .mitem .msub{color:var(--faint);font-size:12px;margin-left:auto}
+  .tabdot{display:none;margin-left:6px;padding:0 6px;height:16px;line-height:16px;border-radius:9px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;vertical-align:middle}
+  .tabdot.on{display:inline-block}
+  /* Canlı Claude terminali */
+  .apill{cursor:pointer}
+  .term{width:min(940px,96vw);height:min(82vh,780px);display:flex;flex-direction:column;background:#0c0e14;border-radius:16px;overflow:hidden;box-shadow:var(--shadow-lg);border:1px solid #1e2230}
+  .th{display:flex;align-items:center;gap:11px;padding:12px 15px;background:#12141d;border-bottom:1px solid #1e2230;flex:none}
+  .th .av{width:34px;height:34px;border-radius:9px;font-size:13px;color:#fff}
+  .tnm{font-weight:700;font-size:14px;color:#e8ebf5}
+  .tbot{color:#8f88ff;font-weight:600;font-size:11.5px}
+  .tsub{font-size:12px;color:#8b93a7;margin-top:1px}
+  .th .x{color:#8b93a7} .th .x:hover{color:#e8ebf5;background:#232838}
+  .tbody{flex:1;overflow-y:auto;padding:16px 18px;font-family:var(--mono);font-size:12.5px;line-height:1.6;color:#cdd3e0}
+  .tbody .s-text{white-space:pre-wrap;word-break:break-word}
+  .tbody .s-tool{color:#4fd6a0;margin:7px 0 2px;font-weight:600;white-space:pre-wrap;word-break:break-word}
+  .tbody .s-result{color:#697089;margin:0 0 5px;white-space:pre-wrap;word-break:break-word}
+  .tbody .s-sys{color:#f6c25a;margin:9px 0;text-align:center;font-weight:600;opacity:.9}
+  .tbody .live-cursor{display:inline-block;width:7px;height:14px;background:#4fd6a0;vertical-align:text-bottom;animation:blink 1s steps(1) infinite;margin-left:1px}
+  @keyframes blink{50%{opacity:0}}
+  .tempty{color:#5b6376;text-align:center;margin:auto;padding:44px 22px;font-family:var(--font);font-size:13.5px;line-height:1.6}
+  .bk-add{display:flex;gap:9px;margin-bottom:14px}
+  .bk-tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .bk-tools .field,.bk-add .field{padding:9px 12px;font-size:13px}
+  .bk-tools .search{flex:1;min-width:180px}
+  #journal{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  .jrow{display:flex;gap:12px;align-items:baseline;padding:11px 15px;border-bottom:1px solid var(--line2)}
+  .jrow:last-child{border:none}
+  .jts{flex:none;color:var(--faint);font-size:11px;font-variant-numeric:tabular-nums;width:98px}
+  .jtx{flex:1;font-size:13px;line-height:1.55}.jwho{font-weight:680}
+  .jtag{font-size:10px;padding:1.5px 8px;border-radius:20px;font-weight:700}
+  .t-activity{background:var(--brand-soft);color:var(--brand-ink)} .t-message{background:#f6e8ff;color:#8a2ce0} .t-memory{background:#d7f7e6;color:#0e8a5f}
+  :root[data-theme="dark"] .t-message{background:#2c1c3e;color:#c99bf5}:root[data-theme="dark"] .t-memory{background:#123227;color:#4fd6a0}
+  .jbody{background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:9px 11px;margin-top:6px;font-size:12.5px;line-height:1.55;white-space:pre-wrap}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px;margin-bottom:18px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:17px 19px;box-shadow:var(--shadow)}
+  .stat .n{font-size:28px;font-weight:780;letter-spacing:-.6px}
+  .stat .l{color:var(--muted);font-size:12.5px;margin-top:3px}
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+  .chart{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:17px;box-shadow:var(--shadow)}
+  .chart h3{margin:0 0 12px;font-size:13px}.chart.wide{grid-column:1/-1}
+  @media(max-width:860px){.charts{grid-template-columns:1fr}#drawer{position:absolute;right:0;top:0;bottom:0;z-index:20;box-shadow:var(--shadow-lg)}}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:11px;font-weight:600;font-size:13px;z-index:100;box-shadow:var(--shadow-lg);animation:fade .2s}
 </style>
 </head>
 <body>
-<header>
-  <div class="brand"><div class="dot"></div>Conductor</div>
-  <span class="proj" id="projName">…</span>
-  <nav class="tabs">
-    <a href="#board" data-view="board">Board</a>
-    <a href="#memory" data-view="memory">Memory</a>
-    <a href="#analytics" data-view="analytics">Analytics</a>
-  </nav>
-  <div class="live"><span class="pulse"></span><span id="liveTxt">connecting…</span></div>
-  <button class="btn ghost" title="Working brief" onclick="showBrief()">ℹ Brief</button>
-  <button class="btn primary" onclick="openTask()">+ Task</button>
-  <button class="btn ghost" title="Change token" onclick="logout()">⚙</button>
-</header>
+<div class="app">
+  <header>
+    <div class="brand"><div class="logo">◆</div>Conductor</div>
+    <span class="proj" id="projName">…</span>
+    <nav class="tabs">
+      <a href="#pano" data-view="pano" class="active">Pano</a>
+      <a href="#sohbet" data-view="sohbet">💬 Sohbet<span class="tabdot" id="chatDot"></span></a>
+      <a href="#bellek" data-view="bellek">Bellek</a>
+      <a href="#analitik" data-view="analitik">Analitik</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="live"><span class="pulse" id="pulse"></span><span id="liveTxt">bağlanıyor…</span></div>
+    <button class="iconbtn" title="Çalışma yönergesi (Brief)" onclick="showBrief()">ℹ️</button>
+    <button class="iconbtn" title="Açık / koyu tema" onclick="toggleTheme()" id="themeBtn">🌙</button>
+    <button class="btn primary" onclick="openTask()">＋ Görev</button>
+  </header>
 
-<main id="view-board">
-  <section class="col">
-    <h2>Agents <span id="agCount" style="color:var(--muted)"></span></h2>
-    <div class="scroll" id="agents"></div>
-      <h2>Users <span id="usrCount" style="color:var(--muted)"></span></h2>
-      <div id="users"></div>
-  </section>
+  <div class="team" id="team"></div>
 
-  <section class="col" id="boardWrap">
+  <div class="work" id="view-pano">
     <div id="board"></div>
-  </section>
-
-  <section class="col">
-    <h2>Feed</h2>
-    <div class="scroll" id="feed"></div>
-  </section>
-</main>
-
-<section id="view-memory" class="page" style="display:none"><div class="page-inner">
-  <div class="bk-add">
-    <input id="bk_note" placeholder="Write a note / decision / handoff…" onkeydown="if(event.key==='Enter')addNote()">
-    <select id="bk_kind"><option value="note">Note</option><option value="decision">Decision</option><option value="handoff">Handoff</option></select>
-    <button class="btn primary" onclick="addNote()">Add</button>
+    <aside id="drawer">
+      <div class="dwh">🔔 Canlı akış <button class="iconbtn cls" style="width:30px;height:30px" onclick="toggleDrawer()">✕</button></div>
+      <div id="feed"></div>
+    </aside>
+    <button class="fabtoggle" onclick="toggleDrawer()" title="Canlı akış">🔔</button>
   </div>
-  <div class="bk-tools">
-    <input class="search" id="bk_search" placeholder="Search…" oninput="renderMemory()">
-    <select id="bk_agent" onchange="renderMemory()"><option value="">Everyone</option></select>
-    <select id="bk_type" onchange="renderMemory()">
-      <option value="">All types</option><option value="activity">Events</option>
-      <option value="message">Messages</option><option value="memory">Notes</option></select>
-    <button class="btn" onclick="loadJournal()">↻ Refresh</button>
-  </div>
-  <div id="journal"></div>
-</div></section>
 
-<section id="view-analytics" class="page" style="display:none"><div class="page-inner">
-  <div class="cards" id="an_cards"></div>
-  <div class="charts" id="an_charts"></div>
-</div></section>
+  <section id="view-bellek" class="page"><div class="page-inner">
+    <div class="bk-add">
+      <input class="field" id="bk_note" placeholder="Bir not / karar / devir (handoff) yaz…" onkeydown="if(event.key==='Enter')addNote()">
+      <select class="field" id="bk_kind" style="width:auto"><option value="note">Not</option><option value="decision">Karar</option><option value="handoff">Devir</option></select>
+      <button class="btn primary" onclick="addNote()">Ekle</button>
+    </div>
+    <div class="bk-tools">
+      <input class="field search" id="bk_search" placeholder="🔍 Ara…" oninput="renderBellek()">
+      <select class="field" id="bk_agent" style="width:auto" onchange="renderBellek()"><option value="">Herkes</option></select>
+      <select class="field" id="bk_type" style="width:auto" onchange="renderBellek()">
+        <option value="">Tüm türler</option><option value="activity">Olaylar</option>
+        <option value="message">Mesajlar</option><option value="memory">Notlar</option></select>
+      <button class="btn" onclick="loadJournal()">↻ Yenile</button>
+    </div>
+    <div id="journal"></div>
+  </div></section>
+
+  <section id="view-analitik" class="page"><div class="page-inner">
+    <div class="cards" id="an_cards"></div>
+    <div class="charts" id="an_charts"></div>
+  </div></section>
+
+  <section id="view-sohbet" class="page"><div class="chatwrap">
+    <div id="chatlog" class="chatlog"></div>
+    <div class="chatbar">
+      <div class="mentionpop" id="mentionpop"></div>
+      <input class="field" id="chatin" placeholder="Ekibe yaz…  ( @ ile bir Claude çağır )" autocomplete="off" maxlength="2000"
+             oninput="chatInput()" onkeydown="chatKeydown(event)" onblur="setTimeout(closeMention,150)">
+      <button class="btn primary" onclick="sendChat()">Gönder</button>
+    </div>
+  </div></section>
+</div>
 
 <script>
 const LANES=[
-  ["todo","To Do","var(--todo)"],["claimed","Active","var(--claimed)"],
-  ["in_progress","Test","var(--prog)"],["blocked","Blocked","var(--blocked)"],
-  ["review","Review","var(--review)"],["done","Done","var(--done)"]];
+  ["todo","Yapılacak","var(--todo)"],["claimed","Aktif","var(--claimed)"],
+  ["in_progress","Test","var(--prog)"],["review","İnceleme","var(--review)"],
+  ["done","Bitti","var(--done)"],["blocked","Bloke","var(--blocked)"]];
 const LANE_TR=Object.fromEntries(LANES.map(l=>[l[0],l[1]]));
+const AV=["#6a63f0","#2f9bee","#12b886","#f59f0a","#ef4444","#e0489b","#0ea5a5","#8b5cf6"];
 let TOKEN=localStorage.getItem("conductor_token")||"";
 let STATE={agents:[],tasks:[],activity:[],messages:[]};
-let dragId=null, busy=false;
+let dragId=null, busy=false, drawerOpen=localStorage.getItem("cnd_drawer")!=="0";
+let ME="", chatSeenId=+(localStorage.getItem("cnd_chatseen")||0), chatBooted=false;
 
 function tok(){return TOKEN}
 async function api(method,path,body){
@@ -223,517 +345,538 @@ async function api(method,path,body){
 }
 function esc(s){return (s??"").toString().replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function ago(iso){if(!iso)return"—";const s=(Date.now()-new Date(iso).getTime())/1000;
-  if(s<60)return Math.max(0,Math.round(s))+" s";if(s<3600)return Math.round(s/60)+" m";
-  if(s<86400)return Math.round(s/3600)+" h";return Math.round(s/86400)+" d";}
+  if(s<60)return Math.max(0,Math.round(s))+" sn";if(s<3600)return Math.round(s/60)+" dk";
+  if(s<86400)return Math.round(s/3600)+" sa";return Math.round(s/86400)+" g";}
+function avColor(n){let h=0;for(const c of (n||""))h=(h*31+c.charCodeAt(0))>>>0;return AV[h%AV.length];}
+function initials(n){return (n||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase();}
+function avatar(n,cls){return `<span class="av ${cls||''}" style="background:${avColor(n)}">${esc(initials(n))}</span>`;}
+function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);}
 function agentStatus(a){
   const hb=a.last_heartbeat?Date.now()-new Date(a.last_heartbeat).getTime():Infinity;
-  if(a.status==="offline"||hb>120000)return "offline";   // 2 min silent → offline (honest roster)
-  if(a.status==="working"&&hb>60000)return "idle";
+  if(a.status==="offline"||hb>600000)return "offline";      // 10 dk sessiz → offline (interaktif kod aralıkları online kalsın)
+  if(a.status==="working"&&hb>300000)return "idle";          // 5 dk hareketsiz → boşta
   return a.status||"offline";
 }
-function gitBadge(a){
-  const g=a.git||{}; const p=[];
-  if(a.branch) p.push(`⎇ ${esc(a.branch)}`);
-  if(g.ahead)     p.push(`<span class="g-ahead">↑${g.ahead}</span>`);
-  if(g.behind)    p.push(`<span class="g-behind">↓${g.behind}</span>`);
-  if(g.conflicts) p.push(`<span class="g-conf">⚠${g.conflicts}</span>`);
-  if(g.dirty)     p.push(`<span class="g-dirty">●</span>`);
-  return p.length?`<div class="gitline">${p.join(' ')}</div>`:'';
+
+/* ── TEAM STRIP ── */
+function renderTeam(){
+  const el=document.getElementById("team");
+  const byId=Object.fromEntries(STATE.tasks.map(t=>[t.id,t]));
+  const ags=STATE.agents;
+  if(!ags.length){el.innerHTML=`<span class="lbl">Ekip</span><span class="empty-team">Henüz ajan katılmadı — bir dev Claude'unu bağlayınca burada görünecek.</span>`;return;}
+  el.innerHTML=`<span class="lbl">Ekip</span>`+ags.map((a,i)=>{
+    const st=agentStatus(a);const ct=a.current_task_id&&byId[a.current_task_id];
+    const sub=ct?`<span class="atask">▸ ${esc(ct.title)}</span>`:`<span class="ast">${st==='working'?'çalışıyor':st==='idle'?'boşta':st==='blocked'?'bloke':'çevrimdışı'} · ♥${ago(a.last_heartbeat)}${a.branch?' · ⎇'+esc(a.branch):''}</span>`;
+    return `<div class="apill" title="Claude'un canlı ekranını izle" onclick="openStream(${i})">
+      <span class="av" style="background:${avColor(a.name)}">${esc(initials(a.name))}<span class="sdot s-${st}"></span></span>
+      <div style="min-width:0"><div class="anm">${esc(a.name)}</div>${sub}</div></div>`;
+  }).join("");
 }
 
-function renderAgents(){
-  document.getElementById("agCount").textContent=STATE.agents.length;
-  const tasksById=Object.fromEntries(STATE.tasks.map(t=>[t.id,t]));
-  const _el=document.getElementById("agents"), _sc=_el.scrollTop;
-  _el.innerHTML=STATE.agents.map((a,i)=>{
-    const st=agentStatus(a);const ct=a.current_task_id&&tasksById[a.current_task_id];
-    return `<div class="agent" onclick="openAgentDetail(${i})"><div class="top"><span class="sdot s-${st}"></span>
-      <span class="nm">${esc(a.name)}</span></div>
-      <div class="meta">${esc(a.machine||"")} · ${st} · ♥ ${ago(a.last_heartbeat)}</div>
-      ${gitBadge(a)}
-      ${ct?`<div class="task">▸ ${esc(ct.title)}</div>`:""}
-      ${a.note?`<div class="meta">${esc(a.note)}</div>`:""}</div>`;
-  }).join("")||`<div class="empty">No agents yet</div>`;
-  _el.scrollTop=_sc;
-}
-
-function renderUsers(){
-  const u=(STATE.users||[]);
-  document.getElementById("usrCount").textContent=u.filter(x=>x.online).length+"/"+u.length;
-  const el=document.getElementById("users"),sc=el.scrollTop;
-  el.innerHTML=u.map(x=>`<div class="urow"><span class="sdot s-${x.online?'working':'offline'}"></span><span class="nm">${esc(x.label)}</span><span class="ur">${x.online?'\ud83d\udfe2 on page':'offline'}</span></div>`).join("")||`<div class="empty">—</div>`;
-  el.scrollTop=sc;
-}
-let _boardSig="";
+/* ── BOARD ── */
+let _sig="";
 function renderBoard(force){
   const byId=Object.fromEntries(STATE.tasks.map(t=>[t.id,t]));
-  const agents=STATE.agents.map(a=>a.name);
-  // Change signature — everything that affects the visuals. If unchanged, DON'T TOUCH the DOM (scroll preserved).
-  const sig=JSON.stringify([agents, STATE.tasks.map(t=>
-    [t.id,t.status,t.assignee,t.assign_mode,t.priority,t.board_order,t.title,t.prompt_state,(t.depends_on||[]).length])]);
-  if(!force && sig===_boardSig) return;
-  _boardSig=sig;
+  const working=new Set(STATE.agents.filter(a=>agentStatus(a)==='working'&&a.current_task_id).map(a=>a.current_task_id));
+  const sig=JSON.stringify([STATE.tasks.map(t=>[t.id,t.status,t.assignee,t.assign_mode,t.priority,t.board_order,t.title,(t.depends_on||[]).length]),[...working]]);
+  if(!force && sig===_sig) return; _sig=sig;
   const board=document.getElementById("board");
-  // When a redraw is needed, save scroll positions → restore them (avoid jumping to the top)
   const sx=board.scrollLeft, sy={};
   board.querySelectorAll(".items").forEach(el=>sy[el.dataset.status]=el.scrollTop);
   board.innerHTML=LANES.map(([key,label,color])=>{
-    const items=STATE.tasks.filter(t=>t.status===key);
-    return `<div class="lane" data-status="${key}">
-      <h3><span class="bar" style="background:${color}"></span>${label}<span class="cnt">${items.length}</span></h3>
-      <div class="items" data-status="${key}">${items.map(t=>card(t,byId,agents)).join("")||""}</div></div>`;
+    const items=STATE.tasks.filter(t=>t.status===key).sort((a,b)=>(b.priority-a.priority)||((a.board_order||0)-(b.board_order||0)));
+    const body=items.map(t=>card(t,byId,working)).join("")|| `<div class="empty">${key==='todo'?'Görev yok — ＋ Görev ile ekle':'—'}</div>`;
+    return `<div class="lane ${key}" data-status="${key}">
+      <div class="lh"><span class="bar" style="background:${color}"></span><span class="name">${label}</span>
+        <span class="cnt">${items.length}</span>${key==='todo'?`<button class="plus" title="Yeni görev" onclick="openTask()">＋</button>`:''}</div>
+      <div class="items" data-status="${key}">${body}</div></div>`;
   }).join("");
   wireDnD();
   board.scrollLeft=sx;
   board.querySelectorAll(".items").forEach(el=>{if(sy[el.dataset.status]!=null)el.scrollTop=sy[el.dataset.status];});
 }
-function psChip(t){
-  const m={pending:['⏳ Claude queued','#fef3c7','#b45309'],
-           running:['⚙ Claude working','#dbeafe','#1d4ed8'],
-           done:['✓ done','#dcfce7','#15803d']}[t.prompt_state];
-  return m?`<span class="chip" style="background:${m[1]};color:${m[2]}">${m[0]}</span>`:'';
-}
-function card(t,byId,agents){
+function card(t,byId,working){
   const unmet=(t.depends_on||[]).filter(id=>byId[id]&&byId[id].status!=="done").length;
-  const opt=`<option value="">— auto pool —</option>`+agents.map(n=>
-    `<option value="${esc(n)}" ${t.assignee===n?"selected":""}>${esc(n)}</option>`).join("");
-  return `<div class="card" draggable="true" data-id="${t.id}">
-    <div class="t" onclick="openTaskCard('${t.id}')" style="cursor:pointer" title="Detail / prompt / revise / delete">${esc(t.title)}</div>
-    <div class="foot">
-      ${t.priority?`<span class="chip pri">P${t.priority}</span>`:""}
-      <span class="chip mode-${t.assign_mode}">${t.assign_mode==="manual"?"manual":"auto"}</span>
-      ${t.assignee?`<span class="chip">👤 ${esc(t.assignee)}</span>`:""}
-      ${psChip(t)}
+  const run=working.has(t.id);
+  return `<div class="card ${t.priority>=100?'pri-hi':''}" draggable="true" data-id="${t.id}" onclick="openTaskCard('${t.id}')">
+    <div class="ct">${esc(t.title)}</div>
+    ${t.spec?`<div class="cspec">${esc(t.spec)}</div>`:""}
+    <div class="cfoot">
+      ${t.priority?`<span class="chip pri">⚑ ${t.priority}</span>`:""}
+      ${t.assignee?`<span class="chip who miniav">${avatar(t.assignee,'mav')}${esc(t.assignee)}</span>`
+                  :`<span class="chip">🎲 havuz</span>`}
     </div>
-    ${unmet?`<div class="dep">⛔ ${unmet} dependency waiting</div>`:""}
-    <select onchange="assign('${t.id}',this.value)" onmousedown="event.stopPropagation()">${opt}</select>
+    ${unmet?`<div class="cdep">⛔ ${unmet} bağımlılık bekliyor</div>`:""}
+    ${run?`<div class="runner"><span class="rd"></span>Claude çalışıyor…</div>`:""}
   </div>`;
 }
 
-// ── Task card: click the title → detail / edit / delete ──
+/* ── DRAG & DROP (basit: sadece durum değiştir, listener-prompt tuzağı YOK) ── */
+function wireDnD(){
+  document.querySelectorAll(".card").forEach(c=>{
+    c.addEventListener("dragstart",e=>{dragId=c.dataset.id;busy=true;e.dataTransfer.effectAllowed="move";setTimeout(()=>c.style.opacity=".4",0)});
+    c.addEventListener("dragend",()=>{busy=false;c.style.opacity="";document.querySelectorAll(".lane").forEach(l=>l.classList.remove("drop"))});
+  });
+  document.querySelectorAll(".lane").forEach(l=>{
+    l.addEventListener("dragover",e=>{e.preventDefault();l.classList.add("drop")});
+    l.addEventListener("dragleave",()=>l.classList.remove("drop"));
+    l.addEventListener("drop",async e=>{e.preventDefault();l.classList.remove("drop");
+      const st=l.dataset.status,id=dragId;dragId=null;busy=false;if(!id)return;
+      const t=STATE.tasks.find(x=>x.id===id);if(!t||t.status===st)return;
+      if(st==="claimed"){ activateTask(id); return; }      // Aktif'e sürükle = "BAŞLAT" tetiği → atanan Claude alır
+      const patch={status:st};
+      if(st==="todo"){patch.prompt_state="idle";}           // Yapılacak'a geri (Claude buna dokunmaz)
+      try{busy=true;await api("PATCH","/api/tasks/"+id,patch);busy=false;await refresh(true);}catch(_){busy=false;}
+    });
+  });
+}
+
+/* ── AKTİF'E AL (başlat tetiği) ── */
+function activateTask(id){
+  const t=STATE.tasks.find(x=>x.id===id); if(!t){refresh(true);return;}
+  const ags=STATE.agents.map(a=>a.name);
+  if(t.assignee){   // zaten atanmış → direkt aktive et (listener'ı tetikle: prompt_state=pending)
+    api("PATCH","/api/tasks/"+id,{status:"claimed",prompt:(t.spec||t.title||"Şartnamedeki işi eksiksiz uygula ve test et."),prompt_state:"pending"}).then(()=>{refresh(true);toast(t.assignee+"'in Claude'u alıyor…")}).catch(_=>refresh(true));
+    return;
+  }
+  if(!ags.length){alert("Önce bir dev Claude'unu bağlamalı (ekip boş).");refresh(true);return;}
+  const o=mkOverlay();o.onclick=e=>{if(e.target===o){o.remove();refresh(true);}};
+  o.innerHTML=`<div class="modal" style="width:min(440px,94vw)"><div class="mh"><h3>▶ Aktif'e al — kim yapacak?</h3><button class="iconbtn x" onclick="this.closest('.overlay').remove();refresh(true)">✕</button></div>
+    <div class="mb"><div class="hint" style="font-weight:650;color:var(--ink);font-size:14px">${esc(t.title)}</div>
+    <label>Atanan kişi <span style="color:var(--faint);font-weight:500">— bu kişinin Claude'u görevi alır</span></label>
+    <select class="field" id="act_who"><option value="">— seç —</option>${ags.map(n=>`<option>${esc(n)}</option>`).join("")}</select>
+    <div class="helpbox">Kaydedince görev <b>Aktif</b>'e geçer; atanan kişinin bilgisayarındaki Claude daemon'ı görevi <b>otomatik</b> alıp (~1 dk) şartnameyi okuyarak çalışmaya başlar. <b>Yapılacak</b>'takilere Claude dokunmaz — orası senin beklemedeki listen.</div></div>
+    <div class="mf"><button class="btn" onclick="this.closest('.overlay').remove();refresh(true)">Vazgeç</button>
+      <button class="btn primary" onclick="doActivate('${id}',this)">▶ Aktif'e al</button></div></div>`;
+  document.body.appendChild(o);setTimeout(()=>document.getElementById("act_who").focus(),40);
+}
+async function doActivate(id,btn){
+  const who=document.getElementById("act_who").value;
+  if(!who){document.getElementById("act_who").focus();return;}
+  const t=STATE.tasks.find(x=>x.id===id)||{};
+  btn.disabled=true;
+  try{await api("PATCH","/api/tasks/"+id,{status:"claimed",assignee:who,assign_mode:"manual",prompt:(t.spec||t.title||"Şartnamedeki işi eksiksiz uygula ve test et."),prompt_state:"pending"});btn.closest(".overlay").remove();await refresh(true);toast(who+"'in Claude'u alıyor…")}
+  catch(e){alert("Hata: "+(e.message||e));btn.disabled=false}
+}
+
+/* ── GÖREV OLUŞTUR ── */
+let pickWho="", pickPri=0, pickDeps=[];
+function whoPicker(sel){
+  const ags=STATE.agents.map(a=>a.name);
+  return `<div class="whopick">
+    <div class="whoopt ${sel?'':'on'}" data-who="" onclick="pickAssignee(this,'')">🎲 Otomatik havuz</div>
+    ${ags.map(n=>`<div class="whoopt ${sel===n?'on':''}" data-who="${esc(n)}" onclick="pickAssignee(this,'${esc(n)}')">${avatar(n)}${esc(n)}</div>`).join("")}</div>`;
+}
+function pickAssignee(el,n){pickWho=n;el.parentElement.querySelectorAll(".whoopt").forEach(x=>x.classList.toggle("on",x.dataset.who===n));}
+function priPicker(v){const opts=[[0,"Normal"],[50,"Yüksek"],[100,"Acil ⚑"]];
+  return `<div class="prisel">${opts.map(([p,l])=>`<div class="po ${v==p?'on':''}" data-p="${p}" onclick="pickPri=${p};this.parentElement.querySelectorAll('.po').forEach(x=>x.classList.toggle('on',x.dataset.p=='${p}'))">${l}</div>`).join("")}</div>`;}
+function openTask(){
+  pickWho="";pickPri=0;pickDeps=[];
+  const tasks=STATE.tasks.filter(t=>t.status!=="done");
+  const o=mkOverlay();
+  o.innerHTML=`<div class="modal wide"><div class="mh"><h3>＋ Yeni görev</h3><button class="iconbtn x" onclick="closeOv(this)">✕</button></div>
+    <div class="mb">
+      <label>Başlık</label><input class="field" id="f_title" placeholder="Kısa ve net: ne yapılacak?">
+      <label>Görev tanımı <span style="color:var(--faint);font-weight:500">— Claude bunu okuyup yapacak</span></label>
+      <textarea class="field big" id="f_spec" placeholder="Ne yapılacak? Hangi dosya/servis? Beklenen sonuç? Nasıl test edilir?&#10;Ne kadar açık yazarsan Claude o kadar isabetli çalışır."></textarea>
+      <label>Kim yapacak?</label>${whoPicker("")}
+      <div class="helpbox">💡 Görev <b>Yapılacak</b>'ta bekler (Claude dokunmaz). Başlatmak istediğinde kartı <b>Aktif</b>'e sürükle → atanan kişinin Claude'u görev tanımını okuyup çalışır.</div>
+      <label style="margin-top:16px">Öncelik</label>${priPicker(0)}
+      ${tasks.length?`<label>Önce bitmesi gereken görevler (bağımlılık)</label>
+        <select class="field" id="f_dep" multiple size="3">${tasks.map(t=>`<option value="${t.id}">${esc(t.title)}</option>`).join("")}</select>`:''}
+    </div>
+    <div class="mf"><button class="btn" onclick="closeOv(this)">Vazgeç</button>
+      <button class="btn primary" onclick="submitTask(this)">Görevi oluştur</button></div></div>`;
+  document.body.appendChild(o);setTimeout(()=>document.getElementById("f_title").focus(),40);
+}
+async function submitTask(btn){
+  const g=id=>document.getElementById(id);
+  const dep=g("f_dep")?[...g("f_dep").selectedOptions].map(o=>o.value):[];
+  const title=g("f_title").value.trim();
+  if(!title){g("f_title").focus();return}
+  const body={title,spec:g("f_spec").value.trim()||null,priority:pickPri,
+    assign_mode:pickWho?"manual":"auto",assignee:pickWho||null,depends_on:dep};
+  btn.disabled=true;
+  try{await api("POST","/api/tasks",body);closeOv(btn);await refresh(true);toast("Görev oluşturuldu")}
+  catch(e){btn.disabled=false;alert("Hata: "+e.message)}
+}
+
+/* ── GÖREV DETAY / DÜZENLE ── */
 function openTaskCard(id){
-  const t=STATE.tasks.find(x=>x.id===id); if(!t)return;
-  const agents=STATE.agents.map(a=>a.name);
+  const t=STATE.tasks.find(x=>x.id===id);if(!t)return;
+  const ags=STATE.agents.map(a=>a.name);
   const acts=STATE.activity.filter(a=>(a.detail||{}).task_id===id);
   const msgs=STATE.messages.filter(m=>m.task_id===id);
   const statusOpts=LANES.map(([k,l])=>`<option value="${k}" ${t.status===k?"selected":""}>${l}</option>`).join("");
-  const whoOpts=`<option value="">— auto pool —</option>`+agents.map(n=>`<option ${t.assignee===n?"selected":""}>${esc(n)}</option>`).join("");
-  const art=t.artifacts&&Object.keys(t.artifacts).length
-    ?`<label>Outputs (artifacts)</label><pre class="art">${esc(JSON.stringify(t.artifacts,null,2))}</pre>`:"";
-  const dep=(t.depends_on||[]).length?`<div class="hint">⛔ ${t.depends_on.length} dependencies defined</div>`:"";
-  const o=document.createElement("div");o.className="overlay";o.onclick=e=>{if(e.target===o)o.remove()};
-  o.innerHTML=`<div class="modal"><h3>Task — Detail / Edit</h3>
-    <label>Title</label><input id="et_title" value="${esc(t.title)}">
-    <label>Description / Spec</label><textarea id="et_spec" style="min-height:88px">${esc(t.spec||"")}</textarea>
-    <div class="row">
-      <div><label>Status</label><select id="et_status">${statusOpts}</select></div>
-      <div><label>Priority</label><input id="et_pri" type="number" value="${t.priority||0}"></div>
+  const whoOpts=`<option value="">🎲 Otomatik havuz</option>`+ags.map(n=>`<option ${t.assignee===n?"selected":""}>${esc(n)}</option>`).join("");
+  const art=t.artifacts&&Object.keys(t.artifacts).length?`<div class="dsec"><h4>Çıktılar</h4><pre class="art">${esc(JSON.stringify(t.artifacts,null,2))}</pre></div>`:"";
+  const dep=(t.depends_on||[]).length?`<div class="hint">⛔ ${t.depends_on.length} bağımlılık tanımlı</div>`:"";
+  const integ=(t.status==='in_progress'||t.status==='review')?`<button class="btn ok" title="Claude smoke test → main'e merge → huna.test deploy → Bitti. PROD'a dokunmaz." onclick="sendToReview('${t.id}')">🚀 Entegre & Deploy</button>`:'';
+  const o=mkOverlay();
+  o.innerHTML=`<div class="modal"><div class="mh"><span class="badge b-${t.status}">${LANE_TR[t.status]||t.status}</span><h3 style="font-size:15px">Görev</h3><button class="iconbtn x" onclick="closeOv(this)">✕</button></div>
+    <div class="mb">
+      <label>Başlık</label><input class="field" id="et_title" value="${esc(t.title)}">
+      <label>Görev tanımı <span style="color:var(--faint);font-weight:500">— Claude bunu okur</span></label>
+      <textarea class="field" id="et_spec" style="min-height:110px">${esc(t.spec||"")}</textarea>
+      <div class="row"><div><label>Durum</label><select class="field" id="et_status">${statusOpts}</select></div>
+        <div><label>Atanan</label><select class="field" id="et_who">${whoOpts}</select></div></div>
+      <label>Öncelik</label>${priPicker(t.priority||0)}
+      ${dep}${art}
+      ${histHTML(t)}
+      <div class="dsec"><div class="dmeta">Oluşturan: ${esc(t.created_by||"?")} · açıldı ${ago(t.created_at)} · güncellendi ${ago(t.updated_at)}</div></div>
+      ${acts.length?`<div class="dsec"><h4>Geçmiş</h4><div style="max-height:22vh;overflow:auto">${timelineHTML(acts)}</div></div>`:""}
+      ${msgs.length?`<div class="dsec"><h4>İlgili mesajlar</h4>${msgsHTML(msgs)}</div>`:""}
     </div>
-    <label>Assignee</label><select id="et_who">${whoOpts}</select>
-    ${dep}${art}
-    ${promptBlockHTML(t)}
-    <div class="dmeta" style="margin:9px 0 2px">Created by: ${esc(t.created_by||"?")} · opened ${ago(t.created_at)} · updated ${ago(t.updated_at)}</div>
-    <div class="dsec" style="margin-top:4px"><h4 style="margin:6px 0 4px">History</h4><div style="max-height:20vh;overflow:auto">${timelineHTML(acts)}</div></div>
-    ${msgs.length?`<div class="dsec"><h4 style="margin:6px 0 4px">Related messages</h4>${msgsHTML(msgs)}</div>`:""}
-    <div class="actions" style="margin-top:12px">
-      <button class="btn" style="background:#dc2626;color:#fff;border-color:#dc2626" onclick="deleteTaskCard('${t.id}')">🗑 Delete</button>
-      <span style="flex:1"></span>
-      ${(t.status==='in_progress'||t.status==='review')?`<button class="btn" style="background:#16a34a;color:#fff;border-color:#16a34a" title="Agent smoke test → merge branch into main (auto-resolve on conflict) → deploy → Done" onclick="this.closest('.overlay').remove();sendToReview('${t.id}')">🚀 Merge &amp; Deploy</button>`:''}
-      <button class="btn" onclick="this.closest('.overlay').remove()">Close</button>
-      <button class="btn primary" onclick="saveTaskEdit('${t.id}',this)">Save</button>
-    </div></div>`;
-  document.body.appendChild(o);document.getElementById("et_title").focus();
+    <div class="mf"><button class="btn danger" onclick="deleteTaskCard('${t.id}')">🗑 Sil</button><div style="flex:1"></div>
+      ${integ}<button class="btn" onclick="closeOv(this)">Kapat</button>
+      <button class="btn primary" onclick="saveTaskEdit('${t.id}',this)">Kaydet</button></div></div>`;
+  pickPri=t.priority||0;
+  document.body.appendChild(o);
 }
 async function saveTaskEdit(id,btn){
-  btn.disabled=true;
-  const g=x=>document.getElementById(x);
-  const who=g("et_who").value;
-  const body={title:g("et_title").value.trim(), spec:g("et_spec").value.trim(),
-    status:g("et_status").value, priority:parseInt(g("et_pri").value)||0,
-    assignee:who||null, assign_mode:who?"manual":"auto"};
-  try{ await api("PATCH","/api/tasks/"+id,body); btn.closest(".overlay").remove(); await refresh(); }
-  catch(e){ alert("Could not save: "+(e.message||e)); btn.disabled=false; }
+  btn.disabled=true;const g=x=>document.getElementById(x);const who=g("et_who").value;
+  const body={title:g("et_title").value.trim(),spec:g("et_spec").value.trim()||null,
+    status:g("et_status").value,priority:pickPri,assignee:who||null,assign_mode:who?"manual":"auto"};
+  try{await api("PATCH","/api/tasks/"+id,body);closeOv(btn);await refresh(true);toast("Kaydedildi")}
+  catch(e){alert("Kaydedilemedi: "+(e.message||e));btn.disabled=false}
 }
 async function deleteTaskCard(id){
-  if(!confirm("Permanently DELETE this task? This cannot be undone.")) return;
-  try{ await api("DELETE","/api/tasks/"+id); document.querySelectorAll(".overlay").forEach(o=>o.remove()); await refresh(); }
-  catch(e){ alert("Could not delete: "+(e.message||e)); }
+  if(!confirm("Bu görev kalıcı olarak SİLİNSİN mi?"))return;
+  try{await api("DELETE","/api/tasks/"+id);document.querySelectorAll(".overlay").forEach(o=>o.remove());await refresh(true)}
+  catch(e){alert("Silinemedi: "+(e.message||e))}
+}
+function histHTML(t){
+  const h=(t.prompt_history||[]);if(!h.length)return"";
+  const rows=h.map(x=>{const isR=x.kind==="result";const ic=isR?(x.ok===false?"⚠️":"🤖"):"✎";
+    const lbl=isR?(x.ok===false?"Claude — sorun bildirdi":"Claude — sonuç"):(esc(x.by||"?")+" — not");
+    return `<div class="tl"><span class="tl-ic">${ic}</span><span class="tl-tx"><b>${lbl}</b><div style="white-space:pre-wrap;margin-top:2px;color:var(--ink2)">${esc(x.result||x.prompt||"")}</div></span><span class="tl-tm">${x.at?ago(x.at):""}</span></div>`;
+  }).join("");
+  return `<div class="dsec"><h4>Claude — çalışma geçmişi</h4><div style="max-height:24vh;overflow:auto">${rows}</div></div>`;
+}
+async function sendToReview(id){
+  if(!confirm("Entegre & Deploy — Claude smoke test yapar; uygunsa branch'i main'e MERGE eder (conflict'te Claude çözer), huna.test'e deploy edip Bitti'ye taşır. PROD'a (.90) DOKUNMAZ. Devam?")){return}
+  try{await api("PATCH","/api/tasks/"+id,{status:"review",prompt:"(otomatik smoke test)",prompt_state:"pending"});document.querySelectorAll(".overlay").forEach(o=>o.remove());await refresh(true);toast("İnceleme/deploy tetiklendi")}
+  catch(e){alert("Hata: "+(e.message||e))}
 }
 
-// Produce icon/label/target for an activity event (shared by card + timeline)
+/* ── AKIŞ / FEED ── */
 function actMeta(e){
-  const d=e.detail||{};
-  const tById=Object.fromEntries(STATE.tasks.map(t=>[t.id,t]));
+  const d=e.detail||{};const tById=Object.fromEntries(STATE.tasks.map(t=>[t.id,t]));
   const title=d.title||(d.task_id&&tById[d.task_id]?tById[d.task_id].title:null);
-  const M={
-    "task.created":{icon:"➕",label:"created a task",target:title},
-    "task.claimed":{icon:"🖐",label:"claimed a task",target:title},
-    "task.updated":{icon:"✎",label:"updated"+(d.status?" · "+(LANE_TR[d.status]||d.status):""),target:title},
-    "task.reclaimed":{icon:"♻",label:"returned task to pool",target:title},
-    "task.deleted":{icon:"🗑",label:"deleted a task",target:title},
-    "agent.registered":{icon:"●",label:"joined the board",target:d.machine||null},
-    "message.posted":null,   // messages are shown as separate cards
-  };
+  const M={"task.created":{icon:"➕",label:"görev açtı",target:title},
+    "task.claimed":{icon:"🖐",label:"görevi aldı",target:title},
+    "task.updated":{icon:"✎",label:"güncelledi"+(d.status?" · "+(LANE_TR[d.status]||d.status):""),target:title},
+    "task.reclaimed":{icon:"♻️",label:"görev havuza iade edildi (ajan çevrimdışı)",target:title},
+    "task.deleted":{icon:"🗑",label:"görevi sildi",target:title},
+    "agent.registered":{icon:"👋",label:"panoya katıldı",target:d.machine||null},
+    "message.posted":null};
   return M[e.kind];
 }
-
 function renderFeed(){
   const acts=STATE.activity.map(a=>({t:a.created_at,kind:"act",...a}));
   const msgs=STATE.messages.map(m=>({t:m.created_at,kind:"msg",...m}));
   const all=[...acts,...msgs].sort((x,y)=>new Date(y.t)-new Date(x.t)).slice(0,60);
-  const _el=document.getElementById("feed"), _sc=_el.scrollTop;
-  _el.innerHTML=all.map(e=>{
-    if(e.kind==="msg"){
-      const to=e.to_agent?("→ "+esc(e.to_agent)):"→ everyone";
-      return `<div class="fcard msg" onclick="openDetail('msg',${e.id})">
-        <div class="fc-top"><span class="fc-ico">💬</span><span class="fc-who">${esc(e.from_agent||"?")}</span>
-          <span class="fc-sub">${to}</span><span class="fc-tm">${ago(e.t)}</span></div>
-        <div class="fc-body">${esc(e.body)}</div></div>`;
-    }
-    const m=actMeta(e); if(!m) return "";
-    return `<div class="fcard" onclick="openDetail('act',${e.id})">
-      <div class="fc-top"><span class="fc-ico">${m.icon}</span><span class="fc-who">${esc(e.actor||"?")}</span>
-        <span class="fc-tm">${ago(e.t)}</span></div>
-      <div class="fc-act">${m.label}</div>
-      ${m.target?`<div class="fc-tgt">${esc(m.target)}</div>`:""}</div>`;
-  }).join("")||`<div class="empty">Feed is empty</div>`;
-  _el.scrollTop=_sc;
+  const el=document.getElementById("feed"),sc=el.scrollTop;
+  el.innerHTML=all.map(e=>{
+    if(e.kind==="msg"){const to=e.to_agent?("→ "+esc(e.to_agent)):"→ herkes";
+      return `<div class="fcard msg" onclick="openDetail('msg',${e.id})"><div class="fic">💬</div><div style="min-width:0">
+        <div><span class="fc-who">${esc(e.from_agent||"?")}</span> <span class="fc-tm">${esc(to)} · ${ago(e.t)}</span></div>
+        <div class="fc-body">${esc(e.body)}</div></div></div>`;}
+    const m=actMeta(e);if(!m)return"";
+    return `<div class="fcard" onclick="openDetail('act',${e.id})"><div class="fic">${m.icon}</div><div style="min-width:0">
+      <div><span class="fc-who">${esc(e.actor||"?")}</span> <span class="fc-tm">${ago(e.t)}</span></div>
+      <div class="fc-act">${m.label}</div>${m.target?`<div class="fc-tgt">${esc(m.target)}</div>`:""}</div></div>`;
+  }).join("")||`<div class="empty">Akış boş</div>`;
+  el.scrollTop=sc;
 }
 
-// ── Detail view (when a feed card or agent card is clicked) ──
+/* ── DETAY MODALLARI ── */
 function badge(st){return `<span class="badge b-${st}">${esc(LANE_TR[st]||st)}</span>`}
 function taskDetailHTML(t){
-  const art=t.artifacts&&Object.keys(t.artifacts).length
-    ?`<pre class="art">${esc(JSON.stringify(t.artifacts,null,2))}</pre>`:"";
-  const deps=(t.depends_on||[]).length?`<div class="dmeta" style="margin-top:6px">⛔ ${t.depends_on.length} dependencies</div>`:"";
-  return `<div class="dtask">
-    <div class="dtask-h">${badge(t.status)}<b>${esc(t.title)}</b></div>
-    <div class="dmeta">${t.assignee?("👤 "+esc(t.assignee)+" · "):""}${t.assign_mode==="manual"?"manual":"auto assign"}${t.priority?(" · P"+t.priority):""}</div>
-    ${t.spec?`<div class="dspec">${esc(t.spec)}</div>`:""}${deps}${art}</div>`;
+  const art=t.artifacts&&Object.keys(t.artifacts).length?`<pre class="art">${esc(JSON.stringify(t.artifacts,null,2))}</pre>`:"";
+  return `<div class="dtask"><div class="dtask-h">${badge(t.status)}${esc(t.title)}</div>
+    <div class="dmeta">${t.assignee?("👤 "+esc(t.assignee)+" · "):"🎲 havuz · "}${t.assign_mode==="manual"?"manuel":"oto"}${t.priority?(" · ⚑"+t.priority):""}</div>
+    ${t.spec?`<div class="dspec">${esc(t.spec)}</div>`:""}${art}</div>`;
 }
-function timelineHTML(acts){
-  if(!acts.length) return `<div class="empty">— no activity —</div>`;
+function timelineHTML(acts){if(!acts.length)return`<div class="empty">— hareket yok —</div>`;
   return acts.map(a=>{const m=actMeta(a)||{icon:"·",label:a.kind,target:null};
-    return `<div class="tl"><span class="tl-ic">${m.icon}</span>
-      <span class="tl-tx"><b>${esc(a.actor||"?")}</b> ${m.label}${m.target?(" · "+esc(m.target)):""}</span>
-      <span class="tl-tm">${ago(a.created_at)}</span></div>`;}).join("");
-}
-function msgsHTML(msgs){
-  if(!msgs.length) return `<div class="empty">— no messages —</div>`;
-  return msgs.map(m=>`<div class="dmsg"><span class="rt">${ago(m.created_at)}</span>
-    <b>${esc(m.from_agent||"?")}</b> <span class="dmeta">${m.to_agent?("→ "+esc(m.to_agent)):"→ everyone"}</span>
-    <div>${esc(m.body)}</div></div>`).join("");
-}
-function showModal(title,html){
-  const o=document.createElement("div");o.className="overlay";o.onclick=e=>{if(e.target===o)o.remove()};
-  o.innerHTML=`<div class="modal detail"><div class="dhead"><h3>${title}</h3>
-    <button class="btn ghost" onclick="this.closest('.overlay').remove()">✕</button></div>
-    <div class="dbody">${html}</div></div>`;
-  document.body.appendChild(o);
-}
-function showBrief(){
-  const t=STATE.brief||'(No brief defined yet.)';
-  showModal("Working Brief",
-    `<div class="dsec"><div class="jbody" style="max-height:58vh;overflow:auto">${esc(t)}</div></div>`);
-}
+    return `<div class="tl"><span class="tl-ic">${m.icon}</span><span class="tl-tx"><b>${esc(a.actor||"?")}</b> ${m.label}${m.target?(" · "+esc(m.target)):""}</span><span class="tl-tm">${ago(a.created_at)}</span></div>`}).join("");}
+function msgsHTML(msgs){if(!msgs.length)return`<div class="empty">— mesaj yok —</div>`;
+  return msgs.map(m=>`<div class="dmsg"><span class="rt">${ago(m.created_at)}</span><b>${esc(m.from_agent||"?")}</b> <span class="dmeta">${m.to_agent?("→ "+esc(m.to_agent)):"→ herkes"}</span><div style="margin-top:3px">${esc(m.body)}</div></div>`).join("");}
+function mkOverlay(){const o=document.createElement("div");o.className="overlay";o.onclick=e=>{if(e.target===o)o.remove()};return o;}
+function closeOv(el){el.closest(".overlay").remove();}
+function showModal(title,html){const o=mkOverlay();
+  o.innerHTML=`<div class="modal"><div class="mh"><h3>${title}</h3><button class="iconbtn x" onclick="closeOv(this)">✕</button></div><div class="mb">${html}</div></div>`;
+  document.body.appendChild(o);}
+function showBrief(){showModal("Çalışma Yönergesi — Brief",`<div class="jbody" style="max-height:64vh;overflow:auto">${esc(STATE.brief||"(Brief tanımlı değil.)")}</div>`);}
 function openDetail(kind,id){
   let item,taskId=null,actor=null,head="";
-  if(kind==="act"){ item=STATE.activity.find(a=>a.id===id); if(!item)return;
-    actor=item.actor; taskId=(item.detail||{}).task_id||null;
-    const m=actMeta(item)||{icon:"·",label:item.kind}; head=`${m.icon} ${esc(actor||"?")}`;
-  } else { item=STATE.messages.find(m=>m.id===id); if(!item)return;
-    actor=item.from_agent; taskId=item.task_id||null; head=`💬 ${esc(actor||"?")}`; }
+  if(kind==="act"){item=STATE.activity.find(a=>a.id===id);if(!item)return;actor=item.actor;taskId=(item.detail||{}).task_id||null;
+    const m=actMeta(item)||{icon:"·"};head=`${m.icon} ${esc(actor||"?")}`;}
+  else{item=STATE.messages.find(m=>m.id===id);if(!item)return;actor=item.from_agent;taskId=item.task_id||null;head=`💬 ${esc(actor||"?")}`;}
   const task=taskId?STATE.tasks.find(t=>t.id===taskId):null;
   const taskActs=taskId?STATE.activity.filter(a=>(a.detail||{}).task_id===taskId):[];
   const taskMsgs=taskId?STATE.messages.filter(m=>m.task_id===taskId):[];
   const actorActs=STATE.activity.filter(a=>a.actor===actor).slice(0,12);
   let b="";
-  if(kind==="msg") b+=`<div class="dsec"><h4>Message</h4>${msgsHTML([item])}</div>`;
-  else{const m=actMeta(item)||{icon:"·",label:item.kind};
-    b+=`<div class="dsec"><h4>Event</h4><div class="tl"><span class="tl-ic">${m.icon}</span>
-      <span class="tl-tx"><b>${esc(actor||"?")}</b> ${m.label}${m.target?(" · "+esc(m.target)):""}</span>
-      <span class="tl-tm">${ago(item.created_at)}</span></div></div>`;}
-  if(task){
-    b+=`<div class="dsec"><h4>Task</h4>${taskDetailHTML(task)}</div>`;
-    b+=`<div class="dsec"><h4>History of this task</h4>${timelineHTML(taskActs)}</div>`;
-    if(taskMsgs.length) b+=`<div class="dsec"><h4>Related messages</h4>${msgsHTML(taskMsgs)}</div>`;
-  }
-  b+=`<div class="dsec"><h4>${esc(actor||"?")} — recent activity</h4>${timelineHTML(actorActs)}</div>`;
+  if(kind==="msg")b+=`<div class="dsec"><h4>Mesaj</h4>${msgsHTML([item])}</div>`;
+  else{const m=actMeta(item)||{icon:"·",label:item.kind};b+=`<div class="dsec"><h4>Olay</h4><div class="tl"><span class="tl-ic">${m.icon}</span><span class="tl-tx"><b>${esc(actor||"?")}</b> ${m.label}${m.target?(" · "+esc(m.target)):""}</span><span class="tl-tm">${ago(item.created_at)}</span></div></div>`;}
+  if(task){b+=`<div class="dsec"><h4>Görev</h4>${taskDetailHTML(task)}</div><div class="dsec"><h4>Bu görevin geçmişi</h4>${timelineHTML(taskActs)}</div>`;
+    if(taskMsgs.length)b+=`<div class="dsec"><h4>İlgili mesajlar</h4>${msgsHTML(taskMsgs)}</div>`;}
+  b+=`<div class="dsec"><h4>${esc(actor||"?")} — son hareketleri</h4>${timelineHTML(actorActs)}</div>`;
   showModal(head,b);
 }
 function openAgentDetail(i){
-  const a=STATE.agents[i]; if(!a)return;
-  const st=agentStatus(a);
+  const a=STATE.agents[i];if(!a)return;const st=agentStatus(a);
   const task=a.current_task_id?STATE.tasks.find(t=>t.id===a.current_task_id):null;
   const acts=STATE.activity.filter(x=>x.actor===a.name).slice(0,15);
   const msgs=STATE.messages.filter(m=>m.from_agent===a.name||m.to_agent===a.name).slice(0,10);
-  let b=`<div class="dsec"><div class="agent-hero"><span class="sdot s-${st}"></span>${esc(a.name)}
-     <span class="dmeta">${esc(a.machine||"")} · ${st} · ♥ ${ago(a.last_heartbeat)}</span></div>
-     ${a.note?`<div class="dspec">${esc(a.note)}</div>`:""}</div>`;
   const g=a.git||{};
-  if(a.branch||g.branch) b+=`<div class="dsec"><h4>Git</h4><div class="dtask">
-     <div class="dtask-h">⎇ <b>${esc(a.branch||g.branch)}</b></div>
-     <div class="dmeta">${g.ahead?`↑${g.ahead} ahead &nbsp;`:''}${g.behind?`↓${g.behind} behind &nbsp;`:''}${g.conflicts?`<span style="color:var(--blocked);font-weight:700">⚠${g.conflicts} conflict</span> &nbsp;`:''}${g.dirty?'● dirty':'clean'}</div>
-     ${g.note?`<div class="dspec">${esc(g.note)}</div>`:''}
-     ${g.at?`<div class="dmeta" style="margin-top:5px">last: ${ago(g.at)}</div>`:''}</div></div>`;
-  if(task) b+=`<div class="dsec"><h4>Currently working on</h4>${taskDetailHTML(task)}</div>`;
-  else b+=`<div class="dsec"><div class="empty">Not on a task right now</div></div>`;
-  b+=`<div class="dsec"><h4>Recent activity</h4>${timelineHTML(acts)}</div>`;
-  if(msgs.length) b+=`<div class="dsec"><h4>Messages</h4>${msgsHTML(msgs)}</div>`;
+  let b=`<div class="dsec"><div class="hero">${avatar(a.name)}<div><div class="hnm">${esc(a.name)}</div>
+     <div class="dmeta">${esc(a.machine||"")} · <span style="color:${st==='working'?'var(--done)':st==='offline'?'var(--faint)':'var(--warn)'}">${st}</span> · ♥ ${ago(a.last_heartbeat)}</div></div></div>
+     ${a.note?`<div class="dspec" style="margin-top:10px">${esc(a.note)}</div>`:""}</div>`;
+  if(a.branch||g.branch)b+=`<div class="dsec"><h4>Git</h4><div class="dtask"><div class="dtask-h">⎇ ${esc(a.branch||g.branch)}</div>
+     <div class="dmeta">${g.ahead?`↑${g.ahead} önde &nbsp;`:''}${g.behind?`↓${g.behind} geride &nbsp;`:''}${g.conflicts?`<span style="color:var(--danger);font-weight:700">⚠${g.conflicts} conflict</span> &nbsp;`:''}${g.dirty?'● kirli':'temiz'}</div></div></div>`;
+  b+=task?`<div class="dsec"><h4>Şu an üzerinde çalışıyor</h4>${taskDetailHTML(task)}</div>`:`<div class="dsec"><div class="empty">Şu an bir görevde değil</div></div>`;
+  b+=`<div class="dsec"><h4>Son hareketleri</h4>${timelineHTML(acts)}</div>`;
+  if(msgs.length)b+=`<div class="dsec"><h4>Mesajları</h4>${msgsHTML(msgs)}</div>`;
   showModal(esc(a.name),b);
 }
 
-function wireDnD(){
-  document.querySelectorAll(".card").forEach(c=>{
-    c.addEventListener("dragstart",e=>{dragId=c.dataset.id;busy=true;e.dataTransfer.effectAllowed="move"});
-    c.addEventListener("dragend",()=>{busy=false;document.querySelectorAll(".lane").forEach(l=>l.classList.remove("drag"))});
-  });
-  document.querySelectorAll(".lane").forEach(l=>{
-    l.addEventListener("dragover",e=>{e.preventDefault();l.classList.add("drag")});
-    l.addEventListener("dragleave",()=>l.classList.remove("drag"));
-    l.addEventListener("drop",async e=>{e.preventDefault();l.classList.remove("drag");
-      const st=l.dataset.status; const id=dragId; dragId=null; busy=false;
-      if(!id) return;
-      const t=STATE.tasks.find(x=>x.id===id);
-      if(st==="claimed" && (!t||t.status!=="claimed")){ openActivateModal(id); return; }   // Activate → ask for prompt
-      if(st==="review" && (!t||t.status!=="review")){ sendToReview(id); return; }           // To Review → smoke test
-      let patch={status:st};
-      if(st==="todo") patch.prompt_state="idle";                                            // back to pool → reset prompt
-      try{await api("PATCH","/api/tasks/"+id,patch);await refresh()}catch(_){}});
-  });
-}
-async function assign(id,val){
-  busy=true;
-  try{ await api("PATCH","/api/tasks/"+id, val?{assignee:val,assign_mode:"manual"}:{assign_mode:"auto"}); await refresh(); }
-  catch(_){}
-  busy=false;
-}
-
-// ── Automation: Activate → give Claude a prompt ──
-function openActivateModal(id){
-  const t=STATE.tasks.find(x=>x.id===id); if(!t){refresh();return;}
-  const agents=STATE.agents.map(a=>a.name);
-  const whoOpts=agents.map(n=>`<option ${t.assignee===n?"selected":""}>${esc(n)}</option>`).join("");
-  const o=document.createElement("div");o.className="overlay";o.onclick=e=>{if(e.target===o){o.remove();refresh();}};
-  o.innerHTML=`<div class="modal"><h3>Activate — assign a task to Claude</h3>
-    <div class="hint" style="font-weight:600;color:var(--ink)">${esc(t.title)}</div>
-    <label>Who will do it? (their own Claude listener picks up the job)</label>
-    <select id="ac_who"><option value="">— select —</option>${whoOpts}</select>
-    <label>Prompt for Claude — write it clearly and in detail</label>
-    <textarea id="ac_prompt" style="min-height:120px" placeholder="What needs to be done? Which file/service? Expected result? How is it tested?…"></textarea>
-    <div class="hint">Once saved, the card moves to Active; the assignee's Claude picks up the job within ~15-20 min.</div>
-    <div class="actions"><button class="btn" onclick="this.closest('.overlay').remove();refresh()">Cancel</button>
-      <button class="btn primary" onclick="submitActivate('${id}',this)">▶ Activate & send</button></div></div>`;
-  document.body.appendChild(o);setTimeout(()=>document.getElementById("ac_prompt").focus(),50);
-}
-async function submitActivate(id,btn){
-  const who=document.getElementById("ac_who").value;
-  const p=(document.getElementById("ac_prompt").value||"").trim();
-  if(!who){alert("First choose who will do it.");return;}
-  if(!p){document.getElementById("ac_prompt").focus();return;}
-  btn.disabled=true;
-  try{ await api("PATCH","/api/tasks/"+id,{status:"claimed",assignee:who,assign_mode:"manual",prompt:p,prompt_state:"pending"});
-    btn.closest(".overlay").remove(); await refresh(); }
-  catch(e){ alert("Error: "+(e.message||e)); btn.disabled=false; }
-}
-// ── Merge & Deploy → agent smoke → merge into main (auto-resolve on conflict) → deploy → Done ──
-async function sendToReview(id){
-  if(!confirm("Merge & Deploy — the agent runs a smoke test; if it passes it MERGEs the branch into main (intelligently resolving both sides on conflict), triggers the deploy, and moves it to Done. Continue?")){ await refresh(); return; }
-  try{ await api("PATCH","/api/tasks/"+id,{status:"review",prompt:"(automatic smoke test)",prompt_state:"pending"}); await refresh(); }
-  catch(e){ alert("Error: "+(e.message||e)); await refresh(); }
-}
-// ── Revision in Test / (in Active) first prompt → send to Claude (card status unchanged) ──
-async function sendRevision(id,btn){
-  const ta=document.getElementById("rev_prompt"); const p=(ta.value||"").trim();
-  if(!p){ta.focus();return;}
-  btn.disabled=true;
-  try{ await api("PATCH","/api/tasks/"+id,{prompt:p,prompt_state:"pending"});
-    btn.closest(".overlay").remove(); await refresh(); }
-  catch(e){ alert("Could not send: "+(e.message||e)); btn.disabled=false; }
-}
-// Shown in the card modal: prompt & result history + action depending on status
-function promptBlockHTML(t){
-  const hist=(t.prompt_history||[]);
-  const rows=hist.map(h=>{
-    const isRes=h.kind==="result"; const tm=h.at?ago(h.at):"";
-    const txt=esc(h.result||h.prompt||"");
-    const ic=isRes?(h.ok===false?"⚠️":"🤖"):"✎";
-    const lbl=isRes?(h.ok===false?"Claude — reported a problem":"Claude — result")
-                   :(esc(h.by||"?")+" — prompt"+(h.status?" ("+(LANE_TR[h.status]||h.status)+")":""));
-    return `<div class="tl"><span class="tl-ic">${ic}</span><span class="tl-tx"><b>${lbl}</b>
-      <div style="white-space:pre-wrap;margin-top:2px">${txt}</div></span><span class="tl-tm">${tm}</span></div>`;
-  }).join("")||`<div class="empty">— no prompts yet —</div>`;
-  const stTxt={pending:"⏳ Claude waiting (queued)",running:"⚙ Claude working…",done:"✓ last job done"}[t.prompt_state]||"";
-  let action="";
-  const busyps=(t.prompt_state==="pending"||t.prompt_state==="running");
-  if(t.status==="in_progress"){
-    action=`<label>Revision / addition prompt — send to Claude</label>
-      <textarea id="rev_prompt" style="min-height:70px" placeholder="What should it fix / add? Write it clearly…" ${busyps?"disabled":""}></textarea>
-      <div class="actions" style="margin-top:8px"><button class="btn primary" ${busyps?"disabled":""} onclick="sendRevision('${t.id}',this)">✎ Send revision to Claude</button></div>`;
-  } else if(t.status==="claimed" && !busyps){
-    action=`<label>Write a prompt — send to Claude</label>
-      <textarea id="rev_prompt" style="min-height:70px" placeholder="What should it do? Write it clearly and in detail…"></textarea>
-      <div class="actions" style="margin-top:8px"><button class="btn primary" onclick="sendRevision('${t.id}',this)">▶ Send to Claude</button></div>`;
-  }
-  return `<div class="dsec"><h4 style="margin:10px 0 4px">Claude — prompt & result history${stTxt?` · <span style="color:var(--prog)">${stTxt}</span>`:""}</h4>
-    <div style="max-height:26vh;overflow:auto">${rows}</div>${action}</div>`;
-}
-
-// create task modal
-function openTask(){
-  const agents=STATE.agents.map(a=>a.name);
-  const tasks=STATE.tasks.filter(t=>t.status!=="done");
-  const o=document.createElement("div");o.className="overlay";o.onclick=e=>{if(e.target===o)o.remove()};
-  o.innerHTML=`<div class="modal"><h3>New Task</h3>
-    <label>Title</label><input id="f_title" placeholder="What needs to be done?">
-    <label>Description</label><textarea id="f_spec" placeholder="Detail (optional)"></textarea>
-    <div class="row">
-      <div><label>Priority</label><input id="f_pri" type="number" value="0"></div>
-      <div><label>Assignment</label><select id="f_mode" onchange="document.getElementById('f_who').disabled=this.value!=='manual'">
-        <option value="auto">Auto pool</option><option value="manual">Manual</option></select></div>
-    </div>
-    <label>To whom (manual)</label><select id="f_who" disabled><option value="">—</option>
-      ${agents.map(n=>`<option>${esc(n)}</option>`).join("")}</select>
-    <label>Depends on tasks</label><select id="f_dep" multiple size="3">
-      ${tasks.map(t=>`<option value="${t.id}">${esc(t.title)}</option>`).join("")}</select>
-    <div class="hint">This task can't be claimed until the selected tasks are done.</div>
-    <div class="actions"><button class="btn" onclick="this.closest('.overlay').remove()">Cancel</button>
-      <button class="btn primary" onclick="submitTask(this)">Create</button></div></div>`;
-  document.body.appendChild(o);document.getElementById("f_title").focus();
-}
-async function submitTask(btn){
-  const g=id=>document.getElementById(id);
-  const dep=[...g("f_dep").selectedOptions].map(o=>o.value);
-  const mode=g("f_mode").value;
-  const body={title:g("f_title").value.trim(),spec:g("f_spec").value.trim()||null,
-    priority:parseInt(g("f_pri").value)||0,assign_mode:mode,
-    assignee:mode==="manual"?(g("f_who").value||null):null,depends_on:dep};
-  if(!body.title){g("f_title").focus();return}
-  btn.disabled=true;
-  try{await api("POST","/api/tasks",body);btn.closest(".overlay").remove();await refresh()}
-  catch(e){btn.disabled=false;alert("Error: "+e.message)}
-}
-
-// token gate
+/* ── TEMA / DRAWER / TOKEN ── */
+function applyTheme(){const t=localStorage.getItem("cnd_theme");
+  if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.removeAttribute("data-theme");
+  const dark=t==="dark"||(!t&&matchMedia("(prefers-color-scheme:dark)").matches);
+  document.getElementById("themeBtn").textContent=dark?"☀️":"🌙";}
+function toggleTheme(){const cur=localStorage.getItem("cnd_theme");
+  const dark=cur==="dark"||(!cur&&matchMedia("(prefers-color-scheme:dark)").matches);
+  localStorage.setItem("cnd_theme",dark?"light":"dark");applyTheme();}
+function applyDrawer(){document.getElementById("drawer").classList.toggle("hidden",!drawerOpen);}
+function toggleDrawer(){drawerOpen=!drawerOpen;localStorage.setItem("cnd_drawer",drawerOpen?"1":"0");applyDrawer();}
 function promptToken(){
   if(document.getElementById("tokgate"))return;
-  const o=document.createElement("div");o.className="overlay";o.id="tokgate";
-  o.innerHTML=`<div class="modal"><h3>Connect to Conductor</h3>
-    <div class="hint">Enter an agent or admin token. The token is stored in this browser.</div>
-    <label>Token</label><input id="tokin" type="password" placeholder="bearer token">
-    <div class="actions"><button class="btn primary" onclick="saveToken()">Connect</button></div></div>`;
-  document.body.appendChild(o);setTimeout(()=>document.getElementById("tokin").focus(),50);
+  const o=mkOverlay();o.id="tokgate";o.onclick=null;
+  o.innerHTML=`<div class="modal" style="width:min(420px,94vw)"><div class="mh"><div class="brand"><div class="logo">◆</div>Conductor</div></div>
+    <div class="mb"><div class="hint">Ajan veya admin token'ını gir. Token bu tarayıcıda saklanır.</div>
+    <label>Token</label><input class="field" id="tokin" type="password" placeholder="bearer token"></div>
+    <div class="mf"><button class="btn primary" onclick="saveToken()">Bağlan</button></div></div>`;
+  document.body.appendChild(o);setTimeout(()=>document.getElementById("tokin").focus(),40);
   document.getElementById("tokin").addEventListener("keydown",e=>{if(e.key==="Enter")saveToken()});
 }
 function saveToken(){const v=document.getElementById("tokin").value.trim();if(!v)return;
   TOKEN=v;localStorage.setItem("conductor_token",v);document.getElementById("tokgate").remove();boot();}
 function logout(){localStorage.removeItem("conductor_token");TOKEN="";promptToken();}
 
-// ── Tab routing (hash → page) ──
-function currentView(){return (location.hash.replace('#','')||'board');}
+/* ── SEKMELER ── */
+/* ── Sohbet (grup chat) ─────────────────────────────────────── */
+function hhmm(v){const d=new Date(v);if(isNaN(d))return"";return d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});}
+async function loadMe(){try{const r=await api("GET","/api/inbox");ME=r.agent||"";}catch(_){}}
+function chatMsgs(){return (STATE.messages||[]).filter(m=>!m.to_agent).slice().sort((a,b)=>a.id-b.id);}
+function renderChat(){
+  const log=document.getElementById("chatlog");if(!log)return;
+  const msgs=chatMsgs();
+  const nearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<90;
+  if(!msgs.length){log.innerHTML=`<div class="chatempty">Henüz mesaj yok — ekip sohbeti 👋<br><span style="font-size:12px">Bir Claude'a sormak için <b>@</b> yaz ve listeden seç (örn. <b>@isim-claude</b>).</span></div>`;markChatSeen();return;}
+  const rows=msgs.map(m=>{
+    const bot=/🤖/.test(m.from_agent||""), mine=!bot&&m.from_agent===ME;
+    const cls=mine?'me':(bot?'them bot':'them');
+    const who=mine?'':`<div class="cwho">${bot?'🤖 ':''}${esc((m.from_agent||'?').replace(/\s*🤖\s*$/,''))}</div>`;
+    return `<div class="cmsg ${cls}">${who}${esc(m.body)}<div class="ctime">${hhmm(m.created_at)}</div></div>`;
+  });
+  log.innerHTML=rows.join("");
+  if(nearBottom||msgs[msgs.length-1].from_agent===ME)log.scrollTop=log.scrollHeight;
+  markChatSeen();
+}
+function markChatSeen(){const ms=chatMsgs();if(ms.length){chatSeenId=Math.max(chatSeenId,ms[ms.length-1].id);localStorage.setItem("cnd_chatseen",chatSeenId);}updateChatDot();}
+function updateChatDot(){
+  const dot=document.getElementById("chatDot");if(!dot)return;
+  const unseen=chatMsgs().filter(m=>m.id>chatSeenId&&m.from_agent!==ME).length;
+  if(unseen>0&&currentView()!=='sohbet'){dot.textContent=unseen>9?'9+':unseen;dot.classList.add('on');}
+  else dot.classList.remove('on');
+}
+async function sendChat(){
+  const inp=document.getElementById("chatin");const v=(inp.value||"").trim();if(!v)return;
+  closeMention();inp.value="";inp.focus();
+  try{await api("POST","/api/messages",{body:v,from_agent:ME||undefined});await refresh(true);}
+  catch(e){inp.value=v;alert("Gönderilemedi: "+(e.message||e));}
+}
+/* ── @mention seçici ─────────────────────────────────────────── */
+let MENTION={open:false, idx:0, items:[], start:-1};
+function mentionCandidates(){
+  const names=(STATE.agents||[]).map(a=>a.name).filter(Boolean);
+  return names.map(n=>{const fn=n.split(" ")[0];
+    return {label:fn+"-Claude", insert:fn.toLowerCase()+"-claude", sub:n+"'in Claude'u", ic:"🤖"};});
+}
+function chatInput(){
+  const inp=document.getElementById("chatin");
+  const pos=inp.selectionStart, pre=inp.value.slice(0,pos);
+  const m=pre.match(/(?:^|\s)@(\S*)$/);
+  if(!m){closeMention();return;}
+  const q=m[1].toLowerCase();
+  const items=mentionCandidates().filter(c=>c.insert.toLowerCase().includes(q)||c.label.toLowerCase().includes(q));
+  if(!items.length){closeMention();return;}
+  MENTION={open:true, idx:0, items, start:pos-m[1].length-1};
+  renderMention();
+}
+function renderMention(){
+  const pop=document.getElementById("mentionpop");if(!pop)return;
+  pop.innerHTML=`<div class="mentionhdr">KİME SORULACAK</div>`+MENTION.items.map((c,i)=>
+    `<div class="mitem${i===MENTION.idx?' on':''}" onmousedown="event.preventDefault();pickMention(${i})">
+       <span class="mava">${c.ic}</span><b>@${esc(c.insert)}</b><span class="msub">${esc(c.sub)}</span></div>`).join("");
+  pop.classList.add("on");
+}
+function closeMention(){MENTION.open=false;const p=document.getElementById("mentionpop");if(p)p.classList.remove("on");}
+function pickMention(i){
+  const inp=document.getElementById("chatin"),c=MENTION.items[i];if(!c)return;
+  const pos=inp.selectionStart, before=inp.value.slice(0,MENTION.start), after=inp.value.slice(pos);
+  const ins="@"+c.insert+" ";
+  inp.value=before+ins+after;const np=(before+ins).length;
+  closeMention();inp.focus();inp.setSelectionRange(np,np);
+}
+function chatKeydown(e){
+  if(MENTION.open){
+    if(e.key==="ArrowDown"){e.preventDefault();MENTION.idx=(MENTION.idx+1)%MENTION.items.length;renderMention();return;}
+    if(e.key==="ArrowUp"){e.preventDefault();MENTION.idx=(MENTION.idx-1+MENTION.items.length)%MENTION.items.length;renderMention();return;}
+    if(e.key==="Enter"||e.key==="Tab"){e.preventDefault();pickMention(MENTION.idx);return;}
+    if(e.key==="Escape"){e.preventDefault();closeMention();return;}
+  }
+  if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat();}
+}
+/* ── Canlı Claude terminali (ekipte kişiye tıkla → o Claude'un görev-içi ekranı) ── */
+let STREAM={agent:null,since:0,timer:null,lastText:null};
+function openStream(i){
+  const a=STATE.agents[i]; if(!a){return;}
+  closeStream();
+  STREAM={agent:a.name,since:0,timer:null,lastText:null};
+  const o=mkOverlay(); o.id="streamOverlay"; o.onclick=e=>{if(e.target===o)closeStream();};
+  o.innerHTML=`<div class="term">
+    <div class="th"><span class="av" style="background:${avColor(a.name)}">${esc(initials(a.name))}</span>
+      <div style="min-width:0"><div class="tnm">${esc(a.name)} <span class="tbot">· Claude canlı ekran</span></div>
+      <div class="tsub" id="termSub">bağlanıyor…</div></div>
+      <div style="flex:1"></div><button class="iconbtn x" title="Kapat" onclick="closeStream()">✕</button></div>
+    <div class="tbody" id="termBody"></div></div>`;
+  document.body.appendChild(o);
+  pollStream(true);
+  STREAM.timer=setInterval(()=>pollStream(false),1200);
+}
+function closeStream(){ if(STREAM.timer)clearInterval(STREAM.timer); STREAM.timer=null; const o=document.getElementById("streamOverlay"); if(o)o.remove(); STREAM.agent=null; }
+async function pollStream(first){
+  if(!STREAM.agent)return;
+  let rows; try{ rows=await api("GET","/api/stream?agent="+encodeURIComponent(STREAM.agent)+"&since="+STREAM.since); }catch(e){ return; }
+  const body=document.getElementById("termBody"); if(!body)return;
+  if(first){ body.innerHTML=""; STREAM.lastText=null; }
+  if(!rows.length){
+    if(first) body.innerHTML=`<div class="tempty">Şu an akış yok.<br>Bu kişiye bir görev <b>Aktif</b>'e alınınca, Claude'un yaptığı her şey (düşünceleri, çalıştırdığı komutlar) burada <b>canlı</b> akar.</div>`;
+    return;
+  }
+  const nearBottom=body.scrollHeight-body.scrollTop-body.clientHeight<140;
+  const cur=body.querySelector(".live-cursor"); if(cur)cur.remove();
+  for(const r of rows){
+    STREAM.since=Math.max(STREAM.since,r.id);
+    if(r.kind==="text"){
+      if(!STREAM.lastText){ STREAM.lastText=document.createElement("div"); STREAM.lastText.className="s-text"; body.appendChild(STREAM.lastText); }
+      STREAM.lastText.textContent+=r.content;
+    }else{
+      STREAM.lastText=null;
+      const d=document.createElement("div");
+      d.className = r.kind==="tool"?"s-tool":(r.kind==="result"?"s-result":"s-sys");
+      d.textContent=r.content; body.appendChild(d);
+    }
+  }
+  // durum satırı
+  const sub=document.getElementById("termSub"); const last=rows[rows.length-1];
+  if(sub){ sub.textContent = (last.content||"").indexOf("bitti")>=0 ? "görev tamamlandı" : "çalışıyor… (canlı)"; }
+  // yanıp sönen imleç (canlı hissi)
+  if((last.content||"").indexOf("bitti")<0){ const c=document.createElement("span"); c.className="live-cursor"; body.appendChild(c); }
+  if(nearBottom||first)body.scrollTop=body.scrollHeight;
+}
+function currentView(){return(location.hash.replace('#','')||'pano');}
 function showView(name){
-  document.getElementById('view-board').style.display     = name==='board'?'grid':'none';
-  document.getElementById('view-memory').style.display   = name==='memory'?'block':'none';
-  document.getElementById('view-analytics').style.display = name==='analytics'?'block':'none';
+  document.getElementById('view-pano').style.display=name==='pano'?'flex':'none';
+  document.getElementById('team').style.display=name==='pano'?'flex':'none';
+  document.getElementById('view-bellek').classList.toggle('on',name==='bellek');
+  document.getElementById('view-analitik').classList.toggle('on',name==='analitik');
+  document.getElementById('view-sohbet').classList.toggle('on',name==='sohbet');
   document.querySelectorAll('nav.tabs a').forEach(a=>a.classList.toggle('active',a.dataset.view===name));
   if(!TOKEN)return;
-  if(name==='memory') loadJournal();
-  if(name==='analytics') loadAnalytics();
+  if(name==='bellek')loadJournal();
+  if(name==='analitik')loadAnalytics();
+  if(name==='sohbet'){renderChat();setTimeout(()=>{const i=document.getElementById('chatin');if(i)i.focus();},60);}
 }
 window.addEventListener('hashchange',()=>showView(currentView()));
+function fmtTs(iso){const d=new Date(iso),p=n=>String(n).padStart(2,'0');return `${p(d.getDate())}.${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
 
-function fmtTs(iso){const d=new Date(iso);const p=n=>String(n).padStart(2,'0');
-  return `${p(d.getDate())}.${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
-
-// ── Memory page ──
+/* ── BELLEK ── */
 let JOURNAL={activity:[],messages:[],memory:[]};
-async function loadJournal(){
-  try{
-    JOURNAL=await api("GET","/api/journal?limit=500");
-    const who=new Set();
-    JOURNAL.activity.forEach(a=>a.actor&&who.add(a.actor));
-    JOURNAL.messages.forEach(m=>m.from_agent&&who.add(m.from_agent));
-    JOURNAL.memory.forEach(m=>m.author&&who.add(m.author));
-    const sel=document.getElementById('bk_agent'),cur=sel.value;
-    sel.innerHTML='<option value="">Everyone</option>'+[...who].sort().map(n=>`<option ${cur===n?'selected':''}>${esc(n)}</option>`).join('');
-    renderMemory();
-  }catch(_){}
-}
-function addNote(){
-  const inp=document.getElementById('bk_note'),body=inp.value.trim();if(!body)return;
+async function loadJournal(){try{JOURNAL=await api("GET","/api/journal?limit=500");
+  const who=new Set();JOURNAL.activity.forEach(a=>a.actor&&who.add(a.actor));JOURNAL.messages.forEach(m=>m.from_agent&&who.add(m.from_agent));JOURNAL.memory.forEach(m=>m.author&&who.add(m.author));
+  const sel=document.getElementById('bk_agent'),cur=sel.value;
+  sel.innerHTML='<option value="">Herkes</option>'+[...who].sort().map(n=>`<option ${cur===n?'selected':''}>${esc(n)}</option>`).join('');
+  renderBellek();}catch(_){}}
+function addNote(){const inp=document.getElementById('bk_note'),body=inp.value.trim();if(!body)return;
   const kind=document.getElementById('bk_kind').value;
-  api("POST","/api/memory",{body,kind,author:"board"}).then(()=>{inp.value="";loadJournal();})
-    .catch(e=>alert("Error: "+e.message));
-}
-function renderMemory(){
-  const agent=document.getElementById('bk_agent').value;
-  const type=document.getElementById('bk_type').value;
-  const q=(document.getElementById('bk_search').value||'').toLowerCase();
+  api("POST","/api/memory",{body,kind,author:"pano"}).then(()=>{inp.value="";loadJournal();toast("Not eklendi")}).catch(e=>alert("Hata: "+e.message));}
+function renderBellek(){
+  const agent=document.getElementById('bk_agent').value,type=document.getElementById('bk_type').value,q=(document.getElementById('bk_search').value||'').toLowerCase();
   const items=[];
-  JOURNAL.activity.forEach(a=>{const m=actMeta(a);if(!m)return;
-    items.push({ts:a.created_at,type:'activity',who:a.actor,icon:m.icon,text:m.label+(m.target?' · '+m.target:'')});});
-  JOURNAL.messages.forEach(m=>items.push({ts:m.created_at,type:'message',who:m.from_agent,icon:'💬',
-    sub:m.to_agent?('→ '+m.to_agent):'→ everyone',body:m.body}));
-  JOURNAL.memory.forEach(m=>items.push({ts:m.created_at,type:'memory',who:m.author,kind:m.kind,body:m.body,
-    icon:m.kind==='handoff'?'🔁':m.kind==='decision'?'⚖️':'📝'}));
+  JOURNAL.activity.forEach(a=>{const m=actMeta(a);if(!m)return;items.push({ts:a.created_at,type:'activity',who:a.actor,icon:m.icon,text:m.label+(m.target?' · '+m.target:'')});});
+  JOURNAL.messages.forEach(m=>items.push({ts:m.created_at,type:'message',who:m.from_agent,icon:'💬',sub:m.to_agent?('→ '+m.to_agent):'→ herkes',body:m.body}));
+  JOURNAL.memory.forEach(m=>items.push({ts:m.created_at,type:'memory',who:m.author,kind:m.kind,body:m.body,icon:m.kind==='handoff'?'🔁':m.kind==='decision'?'⚖️':'📝'}));
   let list=items.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
-  if(agent) list=list.filter(x=>x.who===agent);
-  if(type)  list=list.filter(x=>x.type===type);
-  if(q)     list=list.filter(x=>((x.text||'')+(x.body||'')+(x.who||'')).toLowerCase().includes(q));
+  if(agent)list=list.filter(x=>x.who===agent);if(type)list=list.filter(x=>x.type===type);
+  if(q)list=list.filter(x=>((x.text||'')+(x.body||'')+(x.who||'')).toLowerCase().includes(q));
   document.getElementById('journal').innerHTML=list.slice(0,400).map(x=>{
-    const tt={activity:'event',message:'message',memory:'memory'}[x.type];
+    const tt={activity:'olay',message:'mesaj',memory:'bellek'}[x.type];
     const tag=`<span class="jtag t-${x.type}">${tt}</span>`;
-    const kt=x.kind?` <span class="jtag k-${x.kind}">${x.kind==='handoff'?'handoff':x.kind==='decision'?'decision':'note'}</span>`:'';
+    const kt=x.kind?` <span class="jtag" style="background:var(--bg2);color:var(--muted)">${x.kind==='handoff'?'devir':x.kind==='decision'?'karar':'not'}</span>`:'';
     const line=x.text?esc(x.text):(x.sub?`<span class="dmeta">${esc(x.sub)}</span>`:'');
     const body=x.body?`<div class="jbody">${esc(x.body)}</div>`:'';
-    return `<div class="jrow"><span class="jts">${fmtTs(x.ts)}</span><span class="jico">${x.icon}</span>
-      <span class="jtx"><span class="jwho">${esc(x.who||'?')}</span> ${tag}${kt} ${line}${body}</span></div>`;
-  }).join('')||`<div class="empty">No records</div>`;
+    return `<div class="jrow"><span class="jts">${fmtTs(x.ts)}</span><span>${x.icon}</span><span class="jtx"><span class="jwho">${esc(x.who||'?')}</span> ${tag}${kt} ${line}${body}</span></div>`;
+  }).join('')||`<div class="empty">Kayıt yok</div>`;
 }
 
-// ── Analytics page ──
-async function loadAnalytics(){ try{renderAnalytics(await api("GET","/api/analytics"));}catch(_){} }
+/* ── ANALİTİK ── */
+async function loadAnalytics(){try{renderAnalytics(await api("GET","/api/analytics"));}catch(_){}}
 function barChart(data,h,color){
-  if(!data.length) return `<div class="empty">No data</div>`;
-  const max=Math.max(1,...data.map(d=>d.v));
-  const bw=Math.max(20,Math.min(60,Math.floor(560/data.length)));
-  const W=data.length*bw, pad=22, bh=h-pad;
+  if(!data.length)return`<div class="empty">Veri yok</div>`;
+  const max=Math.max(1,...data.map(d=>d.v));const bw=Math.max(20,Math.min(64,Math.floor(600/data.length)));
+  const W=data.length*bw,pad=22,bh=h-pad;
   const bars=data.map((d,i)=>{const H=Math.round(bh*d.v/max),x=i*bw,y=bh-H;
-    return `<rect x="${x+bw*0.18}" y="${y}" width="${bw*0.64}" height="${H}" rx="3" fill="${color}"/>`+
-      (d.v?`<text x="${x+bw/2}" y="${y-3}" text-anchor="middle" font-size="9" fill="#6b7488">${d.v}</text>`:'')+
-      `<text x="${x+bw/2}" y="${h-6}" text-anchor="middle" font-size="9" fill="#6b7488">${esc(String(d.label))}</text>`;
-  }).join('');
+    return `<rect x="${x+bw*0.18}" y="${y}" width="${bw*0.64}" height="${H}" rx="4" fill="${color}"/>`+
+      (d.v?`<text x="${x+bw/2}" y="${y-3}" text-anchor="middle" font-size="9" fill="var(--muted)">${d.v}</text>`:'')+
+      `<text x="${x+bw/2}" y="${h-6}" text-anchor="middle" font-size="9" fill="var(--muted)">${esc(String(d.label))}</text>`;}).join('');
   return `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${h}" style="width:100%;max-width:${W}px;height:${h}px;display:block">${bars}</svg></div>`;
 }
 function renderAnalytics(a){
   const t=a.totals;
-  document.getElementById('an_cards').innerHTML=[
-    [t.events,'Total events'],[t.contributors,'Contributors'],
-    [a.tasks_status.done||0,'Completed tasks'],[t.messages,'Messages'],[t.memory,'Memory notes']
-  ].map(([n,l])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+  document.getElementById('an_cards').innerHTML=[[t.events,'Toplam olay'],[t.contributors,'Katkıda bulunan'],[a.tasks_status.done||0,'Tamamlanan görev'],[t.messages,'Mesaj'],[t.memory,'Bellek notu']]
+    .map(([n,l])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
   const hours=Array.from({length:24},(_,h)=>({label:String(h).padStart(2,'0'),v:(a.by_hour.find(x=>x.hr===h)||{}).n||0}));
-  const agents=a.per_agent.map(x=>({label:x.agent,v:x.n}));
-  const days=a.by_day.map(x=>({label:x.d.slice(5),v:x.n}));
+  const agents=a.per_agent.map(x=>({label:x.agent,v:x.n})),days=a.by_day.map(x=>({label:x.d.slice(5),v:x.n}));
   const st=Object.entries(a.tasks_status).map(([k,v])=>({label:LANE_TR[k]||k,v}));
   document.getElementById('an_charts').innerHTML=
-    `<div class="chart wide"><h3>Activity — by hour (local time)</h3>${barChart(hours,150,'#4f46e5')}</div>`+
-    `<div class="chart"><h3>Activity by agent</h3>${barChart(agents,140,'#06b6d4')}</div>`+
-    `<div class="chart"><h3>Task status</h3>${barChart(st,140,'#10b981')}</div>`+
-    `<div class="chart wide"><h3>Last 14 days</h3>${barChart(days,120,'#8b5cf6')}</div>`;
+    `<div class="chart wide"><h3>Etkinlik — saate göre</h3>${barChart(hours,150,'#6a63f0')}</div>`+
+    `<div class="chart"><h3>Ajana göre etkinlik</h3>${barChart(agents,140,'#2f9bee')}</div>`+
+    `<div class="chart"><h3>Görev durumu</h3>${barChart(st,140,'#12b886')}</div>`+
+    `<div class="chart wide"><h3>Son 14 gün</h3>${barChart(days,120,'#8b5cf6')}</div>`;
 }
 
-async function refresh(){
-  if(busy)return;
-  try{
-    const s=await api("GET","/api/state");STATE=s;
-    document.getElementById("liveTxt").textContent="live";
-    document.getElementById("projName").textContent=s.project||"project";
-    renderAgents();renderUsers();renderBoard();renderFeed();
-    if(currentView()==='analytics') loadAnalytics();   // charts are live; memory is refreshed manually (scroll preserved)
-  }catch(e){ if(e.message!=="401")document.getElementById("liveTxt").textContent="no connection"; }
+/* ── LOOP ── */
+async function refresh(force){
+  if(busy&&!force)return;
+  try{const s=await api("GET","/api/state");STATE=s;
+    document.getElementById("liveTxt").textContent="canlı";document.getElementById("pulse").classList.remove("off");
+    document.getElementById("projName").textContent=s.project||"proje";
+    if(!chatBooted){chatBooted=true;const ids=(STATE.messages||[]).map(m=>m.id);chatSeenId=Math.max(chatSeenId,0,...ids);localStorage.setItem("cnd_chatseen",chatSeenId);}
+    if(currentView()==='pano'){renderTeam();renderBoard(force);renderFeed();}
+    if(currentView()==='analitik')loadAnalytics();
+    if(currentView()==='sohbet')renderChat();
+    updateChatDot();
+  }catch(e){if(e.message!=="401"){document.getElementById("liveTxt").textContent="bağlantı yok";document.getElementById("pulse").classList.add("off");}}
 }
-function boot(){ showView(currentView()); refresh(); }
-if(!location.hash) history.replaceState(null,'','#board');
+function boot(){applyTheme();applyDrawer();loadMe();showView(currentView());refresh(true);}
+if(!location.hash)history.replaceState(null,'','#pano');
+applyTheme();
 if(!TOKEN)promptToken();else boot();
 setInterval(()=>{if(TOKEN)refresh()},2500);
 </script>
