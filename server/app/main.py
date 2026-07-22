@@ -537,6 +537,49 @@ async def poll_messages(since: int = 0, to: str | None = None, limit: int = 200,
 
 
 # ─────────────────────────────────────────────────────────────
+# Live output stream (watch a teammate's Claude in real time)
+#   producer: an agent appends chunks of its own work (listener or emit tool)
+#   consumer: anyone in the project tails an agent with ?agent=&since=
+#   Rows are disposable — conductor_reap() prunes them after a day.
+# ─────────────────────────────────────────────────────────────
+_STREAM_KINDS = ("text", "tool", "result", "sys")
+
+
+class StreamIn(BaseModel):
+    content: str
+    kind: str = "text"                   # text | tool | result | sys
+    task_id: str | None = None
+
+
+@app.post("/api/stream")
+async def push_stream(b: StreamIn, who: dict = Depends(caller)):
+    """Append a chunk of live output for the CALLING agent (agent = token label).
+    kind: text (assistant tokens) | tool (a command) | result (an outcome) | sys."""
+    if b.kind not in _STREAM_KINDS:
+        raise HTTPException(400, f"kind must be one of {_STREAM_KINDS}")
+    async with pool.acquire() as c:
+        row = await c.fetchrow(
+            """INSERT INTO stream_events (project_id, agent, task_id, kind, content)
+               VALUES ($1,$2,$3::uuid,$4,$5) RETURNING id""",
+            who["project_id"], who["label"], b.task_id, b.kind, b.content[:8000])
+    return {"id": row["id"]}
+
+
+@app.get("/api/stream")
+async def read_stream(agent: str, since: int = 0, limit: int = 500,
+                      who: dict = Depends(caller)):
+    """Tail a teammate's live output. Returns a bare array of
+    {id, kind, content, task_id, created_at} with id>since, oldest first."""
+    lim = min(max(limit, 1), 1000)
+    async with pool.acquire() as c:
+        rows = await c.fetch(
+            """SELECT id, kind, content, task_id, created_at FROM stream_events
+               WHERE project_id=$1 AND agent=$2 AND id>$3 ORDER BY id LIMIT $4""",
+            who["project_id"], agent, since, lim)
+    return [ser(r) for r in rows]
+
+
+# ─────────────────────────────────────────────────────────────
 # Advisory locks (prevent double-touching the same file)
 # ─────────────────────────────────────────────────────────────
 class LockReq(BaseModel):
@@ -976,6 +1019,21 @@ async def post_message(body: str, to_agent: str = "", task_id: str = "") -> dict
             ctx["project_id"], ctx["label"], to_agent or None, task_id or None, body)
         await log(c, ctx["project_id"], ctx["label"], "message.posted", {"to": to_agent or "all"})
     return ser(row)
+
+
+@mcp.tool
+async def emit(content: str, kind: str = "text", task_id: str = "") -> dict:
+    """Stream a chunk of what you're doing to the live task terminal, so teammates
+    can watch you work in real time. Call it as you go on a claimed task.
+    kind: text (your narration) | tool (a command you ran) | result (an outcome) | sys."""
+    ctx = await _mcp_ctx()
+    k = kind if kind in _STREAM_KINDS else "text"
+    async with pool.acquire() as c:
+        row = await c.fetchrow(
+            """INSERT INTO stream_events (project_id, agent, task_id, kind, content)
+               VALUES ($1,$2,$3::uuid,$4,$5) RETURNING id""",
+            ctx["project_id"], ctx["label"], task_id or None, k, content[:8000])
+    return {"id": row["id"]}
 
 
 @mcp.tool
