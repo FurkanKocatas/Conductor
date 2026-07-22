@@ -4,24 +4,24 @@ import type { Status } from "./api";
  *  `label` is display-only. Each lane carries its own token pair so status is
  *  encoded in colour AND position, not colour alone. */
 export const LANES: {
-  key: Status; label: string; plate: string; hint: string;
+  key: Status; label: string; accent: string; hint: string;
 }[] = [
-  { key: "todo",        label: "To Do",   plate: "var(--plate-paper)",   hint: "Unassigned" },
-  { key: "claimed",     label: "Active",  plate: "var(--plate-mustard)", hint: "In performance" },
-  { key: "in_progress", label: "Test",    plate: "var(--plate-blue)",    hint: "Under test" },
-  { key: "blocked",     label: "Blocked", plate: "var(--plate-red)",     hint: "Held" },
-  { key: "review",      label: "Review",  plate: "var(--plate-sage)",    hint: "Awaiting sign-off" },
-  { key: "done",        label: "Done",    plate: "var(--plate-green)",   hint: "Struck" },
+  { key: "todo",        label: "To Do",   accent: "var(--st-todo)",    hint: "Unassigned" },
+  { key: "claimed",     label: "Active",  accent: "var(--st-active)",  hint: "In performance" },
+  { key: "in_progress", label: "Test",    accent: "var(--st-test)",    hint: "Under test" },
+  { key: "blocked",     label: "Blocked", accent: "var(--st-blocked)", hint: "Held" },
+  { key: "review",      label: "Review",  accent: "var(--st-review)",  hint: "Awaiting sign-off" },
+  { key: "done",        label: "Done",    accent: "var(--st-done)",    hint: "Struck" },
 ];
 
 /** Each agent gets a stable ink, so a person recognises "the violet one" at a
  *  glance. Deterministic hash → no flicker between renders. */
-const AGENT_INKS = ["red", "green", "mustard", "blue"] as const;
+const AGENT_INKS = ["var(--st-test)", "var(--st-done)", "var(--st-active)", "var(--st-review)"] as const;
 
 export function agentInk(name: string): string {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return `var(--${AGENT_INKS[h % AGENT_INKS.length]})`;
+  return AGENT_INKS[h % AGENT_INKS.length];
 }
 
 export function initials(name: string): string {

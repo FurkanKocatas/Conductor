@@ -50,32 +50,40 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--lane-plate);
+  background: var(--column);
   border: var(--border) solid var(--rule);
-  border-radius: var(--r);
-  transition: box-shadow .12s var(--ease), transform .12s var(--ease);
+  border-top: 3px solid var(--lane-accent);
+  border-radius: 0 0 var(--r) var(--r);
+  transition: box-shadow .14s var(--ease);
 }
-.lane.is-over { transform: translate(-3px, -3px); box-shadow: var(--lift); }
+.lane.is-over { box-shadow: 0 0 0 2px var(--lane-accent) inset, var(--lift); }
 
 .lane__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
-  padding: 9px 11px 7px;
-  border-bottom: 1.5px solid var(--rule);
+  padding: 11px 12px 10px;
+  border-bottom: 1px solid var(--rule);
+}
+.lane__dot {
+  width: 7px; height: 7px; border-radius: 2px;
+  background: var(--lane-accent);
+  flex: none;
 }
 .lane__title {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: .16em;
+  letter-spacing: .15em;
   text-transform: uppercase;
+  color: var(--text);
 }
 .lane__n {
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
+  color: var(--text-faint);
 }
 
 .lane__body {
@@ -89,11 +97,11 @@
 }
 
 .lane__hint {
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: .12em;
   text-transform: uppercase;
   color: var(--ink-30);
-  padding: 8px 2px;
+  padding: 10px 3px;
 }
 
 /* ── Task = a printed entry ──────────────────────────────── */
@@ -102,11 +110,12 @@
   background: var(--paper-2);
   border: var(--border) solid var(--rule);
   border-radius: var(--r);
-  padding: 10px 11px;
+  padding: 11px 12px;
   cursor: grab;
-  transition: transform .12s var(--ease), box-shadow .12s var(--ease);
+  box-shadow: var(--lift-sm);
+  transition: box-shadow .14s var(--ease), border-color .14s var(--ease);
 }
-.task:hover { transform: translate(-3px, -3px); box-shadow: var(--lift-sm); }
+.task:hover { box-shadow: var(--lift); border-color: var(--rule-strong); }
 .task:active { cursor: grabbing; }
 .task.is-dragging { opacity: .45; }
 

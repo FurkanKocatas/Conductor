@@ -109,7 +109,7 @@ export default function Board({ demo = false }: { demo?: boolean }) {
                 <div
                   className={`lane${overLane === lane.key ? " is-over" : ""}`}
                   key={lane.key}
-                  style={{ ["--lane-plate" as string]: lane.plate }}
+                  style={{ ["--lane-accent" as string]: lane.accent }}
                   onDragOver={(e) => { e.preventDefault(); setOverLane(lane.key); }}
                   onDragLeave={() => setOverLane((l) => (l === lane.key ? null : l))}
                   onDrop={(e) => {
@@ -120,6 +120,7 @@ export default function Board({ demo = false }: { demo?: boolean }) {
                   }}
                 >
                   <div className="lane__head">
+                    <span className="lane__dot" aria-hidden="true" />
                     <span className="lane__title">{lane.label}</span>
                     <span className="lane__n tabular">{items.length}</span>
                   </div>
